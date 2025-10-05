@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
     "jsqr": "^1.4.0",
     "pinyin": "^4.0.0",
+    "qrcodejs2-fix": "^0.0.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3",

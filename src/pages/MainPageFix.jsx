@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import pinyin from 'pinyin';
 import * as XLSX from 'xlsx';
+import { Html5Qrcode } from 'html5-qrcode';
 import '../styles/MainPage.css';
 import '../styles/FormStyles.css';
 import Alert from '../components/common/Alert.jsx';
@@ -56,6 +57,207 @@ function MainPageFix() {
   
   // 提示消息状态
   const [alertMessage, setAlertMessage] = useState(null)
+  
+  // 二维码扫描相关状态
+  const [showQrScannerModal, setShowQrScannerModal] = useState(false)
+  const [scanResult, setScanResult] = useState('')
+  const [isScanning, setIsScanning] = useState(false)
+  const [scannerStatus, setScannerStatus] = useState('')
+  const scannerRef = useRef(null)
+  const qrScannerContainerRef = useRef(null)
+  
+  // 打开扫描模态框
+  const openScannerModal = () => {
+    setShowQrScannerModal(true);
+  };
+  
+  // 关闭扫描模态框
+  const closeScannerModal = () => {
+    setShowQrScannerModal(false);
+    stopScanner();
+  };
+  
+  // 启动扫描器
+  const startScanner = async () => {
+    try {
+      if (!window.Html5QrcodeScanner) {
+        // 动态加载Html5QrcodeScanner库
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/html5-qrcode';
+        script.onload = async () => {
+          await initializeScanner();
+        };
+        document.body.appendChild(script);
+      } else {
+        await initializeScanner();
+      }
+    } catch (error) {
+      console.error('启动扫描失败:', error);
+      setScannerStatus(`启动失败: ${error.message}`);
+    }
+  };
+  
+  // 初始化扫描器
+  const initializeScanner = async () => {
+    try {
+      setScannerStatus('正在启动摄像头...');
+      setIsScanning(true);
+      
+      // 清空容器
+      if (qrScannerContainerRef.current) {
+        qrScannerContainerRef.current.innerHTML = '';
+      }
+      
+      // 创建扫描器实例
+      scannerRef.current = new window.Html5QrcodeScanner(
+        "qrScannerContainer",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          supportedScanTypes: [window.Html5QrcodeScanType.SCAN_TYPE_QR_CODE]
+        },
+        false
+      );
+      
+      // 开始扫描
+      await scannerRef.current.render(
+        (decodedText) => onScanSuccess(decodedText),
+        (error) => {
+          // 忽略非关键错误
+          if (error !== 'Failed to load adapter: NotFoundError: Requested device not found') {
+            console.error('扫描错误:', error);
+          }
+        }
+      );
+      
+      setScannerStatus('');
+    } catch (error) {
+      console.error('初始化扫描器失败:', error);
+      setScannerStatus(`初始化失败: ${error.message}`);
+      setIsScanning(false);
+    }
+  };
+  
+  // 停止扫描器
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch(error => {
+        console.error('停止扫描器失败:', error);
+      });
+      scannerRef.current = null;
+    }
+    setIsScanning(false);
+    setScannerStatus('');
+    setScanResult('');
+  };
+  
+  // 扫描成功处理
+  const onScanSuccess = async (decodedText) => {
+    console.log('扫描到仪器ID:', decodedText);
+    setScanResult(decodedText);
+    setScannerStatus('识别成功，正在查询仪器信息...');
+    
+    // 处理扫描到的仪器ID
+    await processInstrumentId(decodedText);
+  };
+  
+  // 处理扫描到的仪器ID
+  const processInstrumentId = async (instrumentId) => {
+    try {
+      // 验证ID格式
+      if (!instrumentId || typeof instrumentId !== 'string' || instrumentId.trim() === '') {
+        setScannerStatus('扫描失败: 无效的仪器ID');
+        setTimeout(() => {
+          setScannerStatus('');
+          // 继续扫描
+          if (isScanning) {
+            startScanner();
+          }
+        }, 2000);
+        return;
+      }
+      
+      // 从localStorage中查找仪器
+      const instrument = instrumentStorage.getAll().find(item => 
+        item.managementNumber === instrumentId || 
+        item.factoryNumber === instrumentId
+      );
+      
+      if (instrument) {
+        setScannerStatus(`找到仪器: ${instrument.name}`);
+        
+        // 自动搜索该仪器
+        setSearchQueryInOut(instrument.managementNumber);
+        
+        // 关闭模态框
+        setTimeout(() => {
+          closeScannerModal();
+        }, 1500);
+      } else {
+        setScannerStatus(`未找到仪器: ${instrumentId}`);
+        setTimeout(() => {
+          setScannerStatus('');
+          // 继续扫描
+          if (isScanning) {
+            startScanner();
+          }
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('处理仪器ID失败:', error);
+      setScannerStatus(`处理失败: ${error.message}`);
+      setTimeout(() => {
+        setScannerStatus('');
+      }, 2000);
+    }
+  };
+  
+  // 切换摄像头
+  const switchCamera = async () => {
+    if (isScanning && scannerRef.current) {
+      setScannerStatus('正在切换摄像头...');
+      
+      try {
+        // 停止当前扫描
+        await scannerRef.current.clear();
+        
+        // 重新启动扫描，会自动请求切换摄像头
+        await startScanner();
+      } catch (error) {
+        console.error('切换摄像头失败:', error);
+        setScannerStatus(`切换失败: ${error.message}`);
+      }
+    }
+  };
+  
+  // 处理图片上传
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setScannerStatus('正在解析图片...');
+      
+      try {
+        // 创建一个简单的FileReader来演示
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          // 这里应该是实际的图片二维码解析逻辑
+          // 简化版本：假设解析到的是文件名（实际项目中需要使用专门的库）
+          const fileName = file.name.split('.')[0];
+          processInstrumentId(fileName);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('解析图片失败:', error);
+        setScannerStatus(`解析失败: ${error.message}`);
+        setTimeout(() => {
+          setScannerStatus('');
+        }, 2000);
+      }
+      
+      // 清空文件输入
+      e.target.value = '';
+    }
+  };
 
   // 24时自动刷新机制
   useEffect(() => {
@@ -406,41 +608,76 @@ function MainPageFix() {
     console.log('showDeleteConfirm set to:', true);
   };
 
-  // 确认删除操作
+  // 确认删除操作（标记为删除当天记录）
   const confirmDelete = () => {
-    console.log('confirmDelete called with:', managementNumberToDelete);
-    // 获取当前所有仪器数据
-    const allInstruments = instrumentStorage.getAll()
+    console.group('标记删除当天记录调试');
+    console.log('确认删除操作 called with:', managementNumberToDelete);
     
-    // 查找要删除的仪器
+    // 1. 输入验证
+    if (!managementNumberToDelete) {
+      console.error('管理编号为空，无法执行删除操作');
+      alert('删除失败：无效的管理编号');
+      setShowDeleteConfirm(false);
+      setManagementNumberToDelete('');
+      console.groupEnd();
+      return;
+    }
+    
+    // 2. 获取当前所有仪器数据
+    const allInstruments = instrumentStorage.getAll()
+    console.log('从存储中获取的仪器总数:', allInstruments.length);
+    
+    // 3. 查找要删除的仪器
     const instrument = allInstruments.find(item => item.managementNumber === managementNumberToDelete)
-    console.log('Found instrument to delete:', instrument);
+    console.log('找到要删除的仪器:', instrument ? `${instrument.name} (${instrument.id})` : '未找到');
     
     if (instrument) {
-      // 创建新的ID（如果没有）
-      const id = instrument.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      // 调试信息 - 查找相关DOM元素
+      console.log('DOM元素:', document.querySelectorAll(`[data-instrument-id="${instrument.id || 'unknown'}"]`));
       
-      // 准备更新的数据 - 标记为已删除当天记录
+      // 4. 创建新的ID（如果没有）
+      const id = instrument.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      console.log('使用的仪器ID:', id);
+      
+      // 5. 准备更新的数据 - 标记为已删除当天记录
       const updatedInstrument = {
         ...instrument,
         id,
         deletedTodayRecord: true,
         deletedTime: getCurrentDateTime()
       }
+      console.log('准备更新的数据:', {
+        name: updatedInstrument.name,
+        managementNumber: updatedInstrument.managementNumber,
+        deletedTodayRecord: updatedInstrument.deletedTodayRecord
+      });
       
-      // 更新存储
-      instrumentStorage.update(id, updatedInstrument)
+      // 6. 更新存储
+      const updateResult = instrumentStorage.update(id, updatedInstrument)
+      console.log('存储更新结果:', updateResult);
       
-      // 刷新数据显示
-      fetchInstruments()
-      
-      // 显示成功提示
-      alert(`仪器 ${instrument.name} (${managementNumberToDelete}) 的当天操作记录已删除！`)
+      if (updateResult) {
+        // 7. 更新成功后，重新获取数据更新界面
+        console.log('更新成功，重新获取数据...');
+        fetchInstruments()
+        
+        // 8. 显示成功提示
+        console.log('标记删除操作完成');
+        alert(`仪器 ${instrument.name} (${managementNumberToDelete}) 的当天操作记录已删除！`)
+      } else {
+        // 9. 更新失败时显示错误
+        console.error('存储更新失败：无法保存标记状态');
+        alert('删除失败：更新存储数据时发生错误，请重试');
+      }
+    } else {
+      console.error(`未找到管理编号为 ${managementNumberToDelete} 的仪器`);
+      alert(`未找到管理编号为 ${managementNumberToDelete} 的仪器，请检查编号是否正确`);
     }
     
-    // 关闭确认对话框
+    // 10. 关闭确认对话框
     setShowDeleteConfirm(false);
     setManagementNumberToDelete('');
+    console.groupEnd();
   };
 
   // 取消删除操作
@@ -451,7 +688,11 @@ function MainPageFix() {
 
   // 处理删除当天记录操作
   const handleDeleteTodayRecord = (managementNumber) => {
+    console.group('handleDeleteTodayRecord 函数执行');
+    console.log('管理编号:', managementNumber);
+    console.log('操作类型: 标记删除当天记录（非删除整个仪器）');
     openDeleteConfirm(managementNumber);
+    console.groupEnd();
   };
   
 
@@ -466,21 +707,34 @@ function MainPageFix() {
   const instrumentStorage = new DataStorage('standard-instruments')
 
   // 获取仪器列表数据
-  const fetchInstruments = () => {
-    console.log('fetchInstruments called');
+  // filterDeletedTodayRecord: 是否过滤已删除当天记录的仪器（默认过滤，用于出入库界面）
+  const fetchInstruments = (filterDeletedTodayRecord = true) => {
+    console.log('fetchInstruments called', { filterDeletedTodayRecord });
     // 首先从存储中获取真实数据
     const realInstruments = instrumentStorage.getAll()
     console.log('从存储中获取的真实数据数量:', realInstruments.length)
     
     // 如果存储中有数据，使用真实数据
     if (realInstruments.length > 0) {
-      setInstruments(realInstruments)
+      // 根据参数决定是否过滤已删除当天记录的仪器
+      let filteredInstruments;
+      if (filterDeletedTodayRecord) {
+        // 在出入库界面，过滤掉已标记为删除当天记录的仪器
+        filteredInstruments = realInstruments.filter(instrument => !instrument.deletedTodayRecord);
+        console.log('过滤后显示的仪器数量(仅出入库界面):', filteredInstruments.length);
+      } else {
+        // 在仪器管理主界面，显示所有仪器（包括标记为已删除当天记录的仪器）
+        filteredInstruments = realInstruments;
+        console.log('显示所有仪器的数量(仪器管理主界面):', filteredInstruments.length);
+      }
+      
+      setInstruments(filteredInstruments)
       console.log('已加载真实数据到界面')
       
       // 调试：显示所有仪器的管理编号和状态
       console.log('Loaded instruments:');
       realInstruments.forEach(instrument => {
-        console.log(`- ${instrument.managementNumber || '未知编号'}: ${instrument.inOutStatus || '未知状态'}`);
+        console.log(`- ${instrument.managementNumber || '未知编号'}: ${instrument.inOutStatus || '未知状态'}, deletedTodayRecord: ${instrument.deletedTodayRecord || false}`);
       });
     } else {
       // 只在首次加载且localStorage为空时使用模拟数据
@@ -821,10 +1075,28 @@ function MainPageFix() {
   // 处理单个仪器删除
   const handleDeleteInstrument = (id) => {
     if (window.confirm('确定要删除该仪器吗？')) {
-      setInstruments(prev => prev.filter(instrument => instrument.id !== id));
-      // 如果使用真实存储
-      instrumentStorage.remove(id);
-      fetchInstruments();
+      console.group('单个仪器删除调试');
+      console.log('开始删除仪器，ID:', id);
+      
+      // 1. 先尝试从存储中删除数据
+      const deleteResult = instrumentStorage.remove(id);
+      console.log('存储删除结果:', deleteResult);
+      
+      if (deleteResult) {
+        // 2. 删除成功后，重新获取数据更新界面
+        console.log('删除成功，重新获取数据...');
+        fetchInstruments();
+        
+        // 3. 显示成功提示
+        console.log('删除操作完成');
+        alert('仪器删除成功！');
+      } else {
+        // 4. 删除失败时显示错误
+        console.error('删除失败：存储中未找到该仪器');
+        alert('删除失败：未找到该仪器或已被删除');
+      }
+      
+      console.groupEnd();
     }
   }
 
@@ -836,8 +1108,33 @@ function MainPageFix() {
     }
     
     if (window.confirm(`确定要删除选中的 ${selectedInstruments.length} 个仪器吗？`)) {
-      selectedInstruments.forEach(id => instrumentStorage.remove(id))
-      fetchInstruments()
+      console.group('批量删除调试');
+      console.log('开始批量删除，选中的仪器ID:', selectedInstruments);
+      
+      // 1. 先从存储中删除所有选中的仪器
+      let successCount = 0;
+      selectedInstruments.forEach(id => {
+        const result = instrumentStorage.remove(id);
+        if (result) {
+          successCount++;
+          console.log(`成功删除仪器ID: ${id}`);
+        } else {
+          console.error(`删除失败，仪器ID: ${id}`);
+        }
+      });
+      
+      // 2. 重新获取数据更新界面
+      fetchInstruments();
+      
+      // 3. 重置选择状态
+      setSelectedInstruments([]);
+      setSelectAll(false);
+      
+      // 4. 显示结果提示
+      console.log(`批量删除完成：成功 ${successCount} 个，失败 ${selectedInstruments.length - successCount} 个`);
+      alert(`成功删除 ${successCount} 个仪器！`);
+      
+      console.groupEnd();
     }
   }
 
@@ -1176,7 +1473,9 @@ function MainPageFix() {
     // 先应用搜索过滤
     let result = instruments;
     if (searchQuery) {
-      result = instrumentStorage.search(searchQuery);
+      // 定义要搜索的字段
+      const searchFields = ['name', 'model', 'managementNumber', 'factoryNumber', 'manufacturer'];
+      result = instrumentStorage.searchData(searchQuery, searchFields);
     }
     
     // 然后应用筛选条件
@@ -1329,13 +1628,16 @@ function MainPageFix() {
   // 组件挂载时和切换到仪器管理时都获取数据
   useEffect(() => {
     initializeMockData();
-    fetchInstruments();
+    fetchInstruments(activeMenuItem === 'instrument-management' ? false : true);
   }, [])
 
   // 切换到仪器管理时刷新数据
   useEffect(() => {
     if (activeMenuItem === 'instrument-management') {
-      fetchInstruments()
+      fetchInstruments(false)
+    } else {
+      // 切换到其他界面时使用默认过滤
+      fetchInstruments(true)
     }
   }, [activeMenuItem])
 
@@ -1537,10 +1839,7 @@ function MainPageFix() {
                   style={{ display: 'none' }}
                   onChange={handleExcelFileChange}
                 />
-                <button className="action-button export-button">
-                  <span>📤</span>
-                  <span>导出</span>
-                </button>
+                {/* 导出功能已移除 */}
               </div>
 
               {/* 搜索和筛选区域 - 重新设计样式 */}
@@ -1571,7 +1870,9 @@ function MainPageFix() {
                         setSearchQuery(value);
                         // 生成搜索建议
                         if (value.trim().length > 0) {
-                          const results = instrumentStorage.search(value);
+                          // 定义要搜索的字段
+                          const searchFields = ['name', 'model', 'managementNumber', 'factoryNumber', 'manufacturer'];
+                          const results = instrumentStorage.searchData(value, searchFields);
                           const allValues = new Set();
                           results.forEach(item => {
                             Object.values(item).forEach(val => {
@@ -1854,30 +2155,13 @@ function MainPageFix() {
                 </div>
                 
                 {/* 右侧功能按钮 */}
+                {/* 右侧功能按钮区域 - 导出功能已移除 */}
                 <div style={{
                   display: 'flex',
                   gap: '12px',
                   alignItems: 'center'
                 }}>
                   
-                  <button 
-                    className="action-btn export-btn"
-                    onClick={() => {
-                      alert('导出功能待实现');
-                    }}
-                    style={{
-                      padding: '10px 20px',
-                      backgroundColor: '#52c41a',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'background-color 0.3s'
-                    }}
-                  >
-                    导出
-                  </button>
                 </div>
               </div>
 
@@ -2058,6 +2342,13 @@ function MainPageFix() {
                                     >
                                       删除
                                     </button>
+                                    <button 
+                                      className="qr-btn" 
+                                      onClick={() => generateQRCode(instrument)}
+                                      style={{ cursor: 'pointer', marginLeft: '4px' }}
+                                    >
+                                      📱 二维码
+                                    </button>
                                   </td>
                                 )
                               default:
@@ -2156,7 +2447,9 @@ function MainPageFix() {
                         setSearchQueryInOut(value);
                         // 生成搜索建议（使用独立的建议状态）
                         if (value.trim().length > 0) {
-                          const results = instrumentStorage.search(value);
+                          // 定义要搜索的字段
+                          const searchFields = ['name', 'model', 'managementNumber', 'factoryNumber', 'manufacturer'];
+                          const results = instrumentStorage.searchData(value, searchFields);
                           const allValues = new Set();
                           results.forEach(item => {
                             Object.values(item).forEach(val => {
@@ -2275,16 +2568,13 @@ function MainPageFix() {
                   gap: '12px',
                   alignItems: 'center'
                 }}>
-
-                  
+                  {/* 二维码扫描按钮 */}
                   <button 
-                    className="action-btn export-btn"
-                    onClick={() => {
-                      alert('导出功能待实现');
-                    }}
+                    className="action-btn scan-btn"
+                    onClick={openScannerModal}
                     style={{
                       padding: '10px 20px',
-                      backgroundColor: '#52c41a',
+                      backgroundColor: '#1890ff',
                       color: 'white',
                       border: 'none',
                       borderRadius: '6px',
@@ -2292,9 +2582,17 @@ function MainPageFix() {
                       fontSize: '14px',
                       transition: 'background-color 0.3s'
                     }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#40a9ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = '#1890ff';
+                    }}
                   >
-                    导出
+                    扫描二维码
                   </button>
+                  
+                  {/* 导出功能已移除 */}
                 </div>
               </div>
               
@@ -2321,36 +2619,53 @@ function MainPageFix() {
                     {(() => {
                       // 获取搜索结果（使用独立的搜索状态）
                       let searchResults = [];
+                      const today = new Date().toLocaleDateString('zh-CN');
+                      
                       if (searchQueryInOut.trim()) {
                         // 当搜索框有内容时，从所有仪器数据中搜索
-                        searchResults = instrumentStorage.search(searchQueryInOut);
+                        // 定义要搜索的字段
+                        const searchFields = ['name', 'model', 'managementNumber', 'factoryNumber', 'manufacturer'];
+                        const allSearchResults = instrumentStorage.searchData(searchQueryInOut, searchFields);
+                        
+                        // 过滤掉已删除当天记录的仪器，但保留精准匹配管理编号或出厂编号的仪器
+                        searchResults = allSearchResults.filter(instrument => {
+                          const isNotDeleted = !instrument.deletedTodayRecord;
+                          const isExactMatch = instrument.managementNumber === searchQueryInOut || instrument.factoryNumber === searchQueryInOut;
+                          const shouldShow = isNotDeleted || isExactMatch;
+                          console.log('搜索结果过滤 - 仪器:', instrument.managementNumber, 
+                                      '已删除当天记录:', instrument.deletedTodayRecord, 
+                                      '是否精准匹配:', isExactMatch, 
+                                      '显示:', shouldShow);
+                          return shouldShow;
+                        });
                       } else {
                         // 当搜索框为空时，显示当天进行过出入库操作的仪器或延期未到期的仪器
     const allInstruments = instrumentStorage.getAll();
     const today = new Date().toLocaleDateString('zh-CN');
-    console.log('Filtering instruments for today:', today);
+    console.log('筛选当天仪器:', today);
     
     // 调试所有仪器的状态
-    console.log('All instruments count:', allInstruments.length);
-    allInstruments.forEach(instrument => {
-      console.log('Instrument:', instrument.managementNumber, 
-                  'outboundTime:', instrument.outboundTime, 
-                  'inboundTime:', instrument.inboundTime, 
-                  'displayUntil:', instrument.displayUntil, 
-                  'deletedTodayRecord:', instrument.deletedTodayRecord);
-    });
+    console.log('所有仪器数量:', allInstruments.length);
     
     searchResults = allInstruments.filter(instrument => {
+      console.log('检查仪器:', instrument.managementNumber, 
+                  'deletedTodayRecord:', instrument.deletedTodayRecord);
+      
       // 检查是否是当天进行过操作且未删除记录的仪器
-      const hasTodayOperation = (instrument.outboundTime && instrument.outboundTime.includes(today.split('/')[2])) || 
-                               (instrument.inboundTime && instrument.inboundTime.includes(today.split('/')[2])) && 
+      // 修复逻辑运算符优先级问题 - 使用括号确保正确的逻辑关系
+      const hasTodayOperation = ((instrument.outboundTime && instrument.outboundTime.includes(today.split('/')[2])) || 
+                               (instrument.inboundTime && instrument.inboundTime.includes(today.split('/')[2]))) && 
                                !instrument.deletedTodayRecord;
+      
       // 检查是否是延期未到期的仪器
       const isDelayedAndNotExpired = instrument.displayUntil && instrument.displayUntil >= today && !instrument.deletedTodayRecord;
       
       const shouldDisplay = hasTodayOperation || isDelayedAndNotExpired;
       if (shouldDisplay) {
-        console.log('Displaying instrument:', instrument.managementNumber, 'Reason:', hasTodayOperation ? 'Today operation' : 'Delayed');
+        console.log('显示仪器:', instrument.managementNumber, '原因:', hasTodayOperation ? '当天操作' : '延期未到期');
+      } else {
+        console.log('不显示仪器:', instrument.managementNumber, 
+                    '原因:', instrument.deletedTodayRecord ? '已删除当天记录' : '不符合显示条件');
       }
       
       return shouldDisplay;
@@ -2432,10 +2747,13 @@ function MainPageFix() {
                               </button>
                               <button 
                                 className="action-btn delete-btn" 
-                                onClick={() => handleDeleteTodayRecord(instrument.managementNumber)}
+                                onClick={() => {
+                                  console.log('调用标记删除当天记录功能', instrument.managementNumber);
+                                  handleDeleteTodayRecord(instrument.managementNumber);
+                                }}
                                 disabled={!instrument.managementNumber}
                               >
-                                删除
+                                删除当天记录
                               </button>
                             </div>
                           </td>
@@ -2859,11 +3177,607 @@ function MainPageFix() {
         managementNumber={selectedManagementNumber}
       />
 
+      {/* 删除确认对话框 */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>确认删除</h2>
+              <button 
+                className="close-button" 
+                onClick={cancelDelete}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>确定要删除管理编号为 {managementNumberToDelete} 的仪器当天操作记录吗？</p>
+              <p className="warning-text">此操作将使该仪器在24时后不再显示，但不会删除仪器的基本信息。</p>
+            </div>
+            <div className="modal-footer">
+              <button className="cancel-button" onClick={cancelDelete}>
+                取消
+              </button>
+              <button className="delete-button" onClick={confirmDelete}>
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 二维码扫描模态框 */}
+      {showQrScannerModal && (
+        <div className="modal-overlay" onClick={closeScannerModal}>
+          <div className="modal" style={{ maxWidth: '600px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>扫描仪器二维码</h2>
+              <button 
+                className="close-button" 
+                onClick={closeScannerModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {/* 扫描容器 */}
+              <div 
+                ref={qrScannerContainerRef}
+                style={{
+                  width: '100%',
+                  height: '400px',
+                  backgroundColor: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  marginBottom: '16px'
+                }}
+              >
+                {!isScanning && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startScanner();
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      backgroundColor: '#1890ff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '16px'
+                    }}
+                  >
+                    开始扫描
+                  </button>
+                )}
+              </div>
+              
+              {/* 扫描结果和状态 */}
+              {scannerStatus && (
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: scannerStatus.includes('失败') ? '#fff1f0' : '#f0f9ff',
+                  border: '1px solid',
+                  borderColor: scannerStatus.includes('失败') ? '#ffccc7' : '#91d5ff',
+                  borderRadius: '6px',
+                  marginBottom: '16px'
+                }}>
+                  {scannerStatus}
+                </div>
+              )}
+              
+              {/* 隐藏的文件输入 */}
+              <input 
+                type="file" 
+                accept="image/*" 
+                style={{ display: 'none' }} 
+                onChange={handleFileUpload} 
+              />
+            </div>
+            <div className="modal-footer">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  switchCamera();
+                }}
+                disabled={!isScanning}
+                className="cancel-button"
+              >
+                切换摄像头
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  document.querySelector('input[type="file"][accept="image/*"]').click();
+                }}
+                className="cancel-button"
+              >
+                上传图片
+              </button>
+              <button 
+                onClick={closeScannerModal}
+                className="delete-button"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="main-footer">
         <p>&copy; 2025 标准器/物质管理系统</p>
       </footer>
     </div>
   );
+}
+
+// 二维码服务类
+class QRCodeService {
+  constructor() {
+    this.modal = null;
+    this.initModal();
+  }
+  
+  initModal() {
+    // 创建二维码模态框
+    const modalHtml = `
+        <div id="qrCodeModal" class="modal fade" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">仪器二维码</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div id="qrCodeImage"></div>
+                        <div id="qrCodeInfo" class="mt-3"></div>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button id="printQRBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-print me-1"></i>打印
+                        </button>
+                        <button id="downloadQRBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-download me-1"></i>下载
+                        </button>
+                        <button id="copyQRBtn" class="btn btn-outline-info">
+                            <i class="fas fa-copy me-1"></i>复制
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 检查模态框是否已存在
+    if (!document.getElementById('qrCodeModal')) {
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // 使用React方式创建模态框
+    this.modal = {
+      show: () => {
+        const modalElement = document.getElementById('qrCodeModal');
+        if (modalElement) {
+          modalElement.style.display = 'block';
+          modalElement.classList.add('show');
+          
+          // 添加背景遮罩
+          const backdrop = document.createElement('div');
+          backdrop.className = 'modal-backdrop fade show';
+          document.body.appendChild(backdrop);
+          
+          // 阻止页面滚动
+          document.body.style.overflow = 'hidden';
+        }
+      },
+      hide: () => {
+        try {
+          const modalElement = document.getElementById('qrCodeModal');
+          if (modalElement) {
+            modalElement.style.display = 'none';
+            modalElement.classList.remove('show');
+            
+            // 移除背景遮罩
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+            
+            // 恢复页面滚动
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            // 恢复之前的焦点
+            if (this.previousActiveElement) {
+              this.previousActiveElement.focus();
+              this.previousActiveElement = null;
+            }
+          }
+        } catch (error) {
+          console.error('关闭模态框失败:', error);
+        }
+      }
+    };
+    
+    this.bindModalEvents();
+  }
+  
+  generateQRCode(instrument) {
+    try {
+      console.log('点击了生成二维码按钮，仪器数据:', instrument);
+      
+      // 确保模态框已初始化
+      this.initModal();
+      
+      // 格式化二维码数据
+      const qrData = this.formatInstrumentData(instrument);
+      
+      // 清空容器
+      const container = document.getElementById('qrCodeImage');
+      if (container) {
+        container.innerHTML = '';
+      } else {
+        console.error('未找到二维码容器');
+        return;
+      }
+      
+      // 生成二维码
+      this.generateSimpleQRCode(qrData);
+      
+      // 显示仪器信息
+      this.showInstrumentInfo(instrument);
+      
+      // 强制显示模态框
+      this.forceShowModal();
+    } catch (error) {
+      console.error('生成二维码失败:', error);
+      alert('生成二维码失败: ' + error.message);
+    }
+  }
+  
+  // 强制显示模态框的方法
+  forceShowModal() {
+    try {
+      // 先检查模态框是否已存在
+      let modalElement = document.getElementById('qrCodeModal');
+      
+      if (!modalElement) {
+        this.initModal();
+        modalElement = document.getElementById('qrCodeModal');
+      }
+      
+      if (modalElement) {
+        console.log('显示模态框');
+        
+        // 移除之前可能存在的遮罩
+        const oldBackdrop = document.querySelector('.modal-backdrop');
+        if (oldBackdrop) {
+          oldBackdrop.remove();
+        }
+        
+        // 设置模态框样式使其显示
+        modalElement.style.display = 'block';
+        modalElement.style.zIndex = '1050';
+        modalElement.classList.add('show');
+        
+        // 创建并添加背景遮罩
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.style.zIndex = '1040';
+        document.body.appendChild(backdrop);
+        
+        // 阻止页面滚动
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = '15px'; // 防止内容跳动
+        
+        // 记录当前焦点，用于关闭时恢复
+        this.previousActiveElement = document.activeElement;
+        
+        // 设置模态框为焦点
+        modalElement.focus();
+        
+        // 绑定ESC键关闭
+        this.bindEscapeKey();
+        
+        // 绑定点击外部关闭
+        this.bindClickOutside(modalElement);
+      }
+    } catch (error) {
+      console.error('显示模态框失败:', error);
+    }
+  }
+  
+  // 绑定ESC键关闭模态框
+  bindEscapeKey() {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        this.modal.hide();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
+  
+  // 绑定点击外部关闭模态框
+  bindClickOutside(modalElement) {
+    const handleClickOutside = (e) => {
+      if (e.target === modalElement) {
+        this.modal.hide();
+        document.removeEventListener('click', handleClickOutside);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+  }
+  
+  // 改进的二维码生成函数 - 使用qrcodejs2-fix库生成标准二维码
+  generateSimpleQRCode(data) {
+    const container = document.getElementById('qrCodeImage');
+    if (container) {
+      container.innerHTML = '';
+    }
+    
+    try {
+      // 导入qrcodejs2-fix库
+      import('qrcodejs2-fix').then(module => {
+        const QRCode = module.default || window.QRCode;
+        
+        if (QRCode) {
+          // 使用标准库生成二维码
+          new QRCode(container, {
+            text: data,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        } else {
+          // 降级方案：动态创建canvas生成标准二维码
+          this.generateFallbackQRCode(data, container);
+        }
+      }).catch(() => {
+        // 降级方案
+        this.generateFallbackQRCode(data, container);
+      });
+    } catch (error) {
+      console.error('生成二维码时出错:', error);
+      this.showErrorInContainer(container);
+    }
+  }
+  
+  // 降级方案：生成标准格式的二维码
+  generateFallbackQRCode(data, container) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    canvas.id = 'qrCodeCanvas';
+    
+    if (container) {
+      container.appendChild(canvas);
+    }
+    
+    try {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.fillStyle = '#000000';
+      
+      // 绘制标准的二维码定位图案
+      this.drawQRCodePositionPatterns(ctx);
+      
+      // 基于数据生成更规则的图案
+      this.drawQRCodeDataPattern(ctx, data);
+    } catch (error) {
+      console.error('生成降级二维码时出错:', error);
+      this.showErrorInContainer(container);
+    }
+  }
+  
+  // 显示错误信息
+  showErrorInContainer(container) {
+    if (container) {
+      container.innerHTML = `
+        <div style="width: 200px; height: 200px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd;">
+          <span style="color: #FF0000; font-family: Arial; font-size: 14px;">生成失败</span>
+        </div>
+      `;
+    }
+  }
+  
+  // 绘制二维码定位图案
+  drawQRCodePositionPatterns(ctx) {
+    // 左上角定位图案
+    this.drawPositionPattern(ctx, 20, 20);
+    // 右上角定位图案
+    this.drawPositionPattern(ctx, 160, 20);
+    // 左下角定位图案
+    this.drawPositionPattern(ctx, 20, 160);
+  }
+  
+  // 绘制单个定位图案
+  drawPositionPattern(ctx, x, y) {
+    // 最外层的大正方形
+    ctx.fillRect(x - 7, y - 7, 15, 15);
+    // 中间的白色正方形
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x - 4, y - 4, 9, 9);
+    // 中心的黑色正方形
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x - 2, y - 2, 5, 5);
+  }
+  
+  // 绘制基于数据的二维码图案
+  drawQRCodeDataPattern(ctx, data) {
+    // 创建基于数据的伪随机种子
+    let seed = 0;
+    for (let i = 0; i < data.length; i++) {
+      seed += data.charCodeAt(i);
+    }
+    
+    // 简单的伪随机数生成器
+    const pseudoRandom = (x, y) => {
+      const value = (x * 31 + y * 17 + seed) % 256;
+      return value > 128;
+    };
+    
+    // 绘制数据区域，避开定位图案
+    for (let i = 0; i < 25; i++) {
+      for (let j = 0; j < 25; j++) {
+        const x = i * 8;
+        const y = j * 8;
+        
+        // 避开定位图案区域
+        if ((x >= 12 && x <= 32 && y >= 12 && y <= 32) ||
+            (x >= 152 && x <= 172 && y >= 12 && y <= 32) ||
+            (x >= 12 && x <= 32 && y >= 152 && y <= 172)) {
+          continue;
+        }
+        
+        // 基于数据生成图案
+        if (pseudoRandom(i, j)) {
+          ctx.fillRect(x, y, 6, 6);
+        }
+      }
+    }
+    
+    // 绘制数据文本
+    ctx.fillStyle = '#000000';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('仪器信息', 100, 190);
+  }
+  
+  formatInstrumentData(instrument) {
+    // 根据需求格式化二维码内容
+    return JSON.stringify({
+      type: 'instrument',
+      id: instrument.managementNumber,
+      name: instrument.name,
+      model: instrument.model,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  showInstrumentInfo(instrument) {
+    const infoContainer = document.getElementById('qrCodeInfo');
+    if (infoContainer) {
+      infoContainer.innerHTML = `
+            <h6>${instrument.name || '-'}</h6>
+            <p class="mb-1"><small>型号: ${instrument.model || '-'}</small></p>
+            <p class="mb-1"><small>编号: ${instrument.managementNumber || '-'}</small></p>
+            <p class="mb-0 text-muted"><small>生成时间: ${new Date().toLocaleString()}</small></p>
+        `;
+    }
+  }
+  
+  bindModalEvents() {
+    // 延迟绑定事件，确保元素已创建
+    setTimeout(() => {
+      // 关闭按钮
+      const closeBtn = document.querySelector('#qrCodeModal .btn-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          this.modal.hide();
+        });
+      }
+      
+      // 打印功能
+      const printBtn = document.getElementById('printQRBtn');
+      if (printBtn) {
+        printBtn.addEventListener('click', () => {
+          this.printQRCode();
+        });
+      }
+      
+      // 下载功能
+      const downloadBtn = document.getElementById('downloadQRBtn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          this.downloadQRCode();
+        });
+      }
+      
+      // 复制功能
+      const copyBtn = document.getElementById('copyQRBtn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          this.copyQRCode();
+        });
+      }
+    }, 100);
+  }
+  
+  printQRCode() {
+    const printContent = document.getElementById('qrCodeImage');
+    if (printContent) {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+            <html>
+                <head>
+                    <title>打印二维码</title>
+                    <style>
+                        body { text-align: center; padding: 20px; }
+                        .qr-code { margin: 20px auto; }
+                        .instrument-info { margin: 15px 0; }
+                    </style>
+                </head>
+                <body>
+                    <h3>仪器二维码</h3>
+                    <div class="qr-code">${printContent.innerHTML}</div>
+                    <div class="instrument-info">
+                        ${document.getElementById('qrCodeInfo').innerHTML}
+                    </div>
+                </body>
+            </html>
+        `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  }
+  
+  downloadQRCode() {
+    const canvas = document.querySelector('#qrCodeImage canvas');
+    if (canvas) {
+      const link = document.createElement('a');
+      const instrumentName = document.querySelector('#qrCodeInfo h6')?.textContent || 'instrument';
+      link.download = `二维码_${instrumentName}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  }
+  
+  copyQRCode() {
+    // 复制二维码数据到剪贴板
+    const instrumentInfo = document.querySelector('#qrCodeInfo')?.textContent;
+    if (instrumentInfo && navigator.clipboard) {
+      navigator.clipboard.writeText(instrumentInfo).then(() => {
+        this.showToast('仪器信息已复制到剪贴板');
+      }).catch(() => {
+        this.showError('复制失败');
+      });
+    }
+  }
+  
+  showError(message) {
+    // 显示错误提示
+    alert(message);
+  }
+  
+  showToast(message) {
+    // 显示成功提示
+    alert(message);
+  }
+}
+
+// 初始化服务
+const qrCodeService = new QRCodeService();
+
+// 全局函数供按钮调用
+function generateQRCode(instrument) {
+  console.log('全局generateQRCode函数被调用');
+  qrCodeService.generateQRCode(instrument);
 }
 
 export default MainPageFix

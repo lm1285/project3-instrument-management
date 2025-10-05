@@ -2,36 +2,23 @@ import React, { useState, useEffect } from 'react';
 
 const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
   const [delayDaysInput, setDelayDaysInput] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    console.log('🔍 DelayModal - isOpen 变化:', isOpen);
-    console.log('🔍 DelayModal - managementNumber:', managementNumber);
-
-    if (isOpen) {
-      console.log('✅ 模态框应该显示');
-      setIsVisible(true);
-    } else {
-      console.log('❌ 模态框应该隐藏');
-      setIsVisible(false);
+    if (!isOpen) {
       setDelayDaysInput('');
     }
-  }, [isOpen, managementNumber]);
+  }, [isOpen]);
 
   const handleConfirm = () => {
-    console.log('🔄 确认按钮点击，输入值:', delayDaysInput);
     if (delayDaysInput && !isNaN(delayDaysInput) && parseInt(delayDaysInput) > 0) {
-      console.log('✅ 输入有效，调用 onConfirm');
       onConfirm(parseInt(delayDaysInput));
       setDelayDaysInput('');
     } else {
-      console.log('❌ 输入无效');
       alert('请输入有效的延期天数');
     }
   };
 
   const handleCancel = () => {
-    console.log('🔄 取消按钮点击');
     setDelayDaysInput('');
     onClose();
   };
@@ -40,8 +27,6 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
   if (!isOpen) {
     return null;
   }
-
-  console.log('🎨 渲染模态框 UI');
 
   return (
     <div
@@ -58,7 +43,6 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
         zIndex: 10000,
       }}
       onClick={(e) => {
-        console.log('🖱️ 遮罩层点击');
         if (e.target === e.currentTarget) {
           handleCancel();
         }
@@ -78,19 +62,8 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
           fontWeight: '600',
           color: '#333'
         }}>
-          仪器延期申请 - 调试版本
+          仪器延期申请
         </h3>
-        
-        <div style={{
-          marginBottom: '16px',
-          padding: '8px',
-          backgroundColor: '#e6f7ff',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#0050b3'
-        }}>
-          调试信息: isOpen={isOpen.toString()}, managementNumber={managementNumber}
-        </div>
         
         {managementNumber && (
           <div style={{
@@ -117,10 +90,7 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
           <input
             type="number"
             value={delayDaysInput}
-            onChange={(e) => {
-              console.log('📝 输入变化:', e.target.value);
-              setDelayDaysInput(e.target.value);
-            }}
+            onChange={(e) => setDelayDaysInput(e.target.value)}
             min="1"
             style={{
               width: '100%',

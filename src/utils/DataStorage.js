@@ -96,14 +96,52 @@ class DataStorage {
 
   // 更新一条数据
   updateData(id, updatedItem) {
-    const data = this.getAllData();
-    const index = data.findIndex(item => item.id === id);
-    if (index !== -1) {
-      data[index] = { ...data[index], ...updatedItem };
-      this.saveAllData(data);
-      return true;
+    try {
+      console.log(`DataStorage: 尝试更新ID为 ${id} 的数据`);
+      
+      // 输入验证
+      if (!id || typeof id !== 'string' || !updatedItem || typeof updatedItem !== 'object') {
+        console.error('DataStorage: 更新失败 - 无效的参数', { id, updatedItem });
+        return false;
+      }
+      
+      // 获取当前数据
+      const data = this.getAllData();
+      console.log(`DataStorage: 当前存储中的数据数量: ${data.length}`);
+      
+      // 查找要更新的项目
+      const index = data.findIndex(item => item.id === id);
+      console.log(`DataStorage: 找到匹配项索引: ${index}`);
+      
+      if (index !== -1) {
+        // 创建更新后的数据项
+        const currentItem = data[index];
+        const updatedDataItem = {
+          ...currentItem,  // 保留原有属性
+          ...updatedItem,  // 应用更新的属性
+          updatedAt: new Date().toISOString()  // 添加更新时间
+        };
+        
+        console.log(`DataStorage: 准备更新的数据:`, {
+          id: updatedDataItem.id,
+          name: updatedDataItem.name || '无名称',
+          updatedFields: Object.keys(updatedItem).join(', ')
+        });
+        
+        // 更新数据并保存
+        data[index] = updatedDataItem;
+        this.saveAllData(data);
+        
+        console.log(`DataStorage: ID为 ${id} 的数据更新成功`);
+        return true;
+      } else {
+        console.error(`DataStorage: 更新失败 - 未找到ID为 ${id} 的数据项`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`DataStorage: 更新ID为 ${id} 的数据时发生错误:`, error);
+      return false;
     }
-    return false;
   }
 
   /**
@@ -117,10 +155,38 @@ class DataStorage {
 
   // 删除一条数据
   deleteData(id) {
-    const data = this.getAllData();
-    const filteredData = data.filter(item => item.id !== id);
-    this.saveAllData(filteredData);
-    return data.length !== filteredData.length;
+    try {
+      console.log(`DataStorage: 尝试删除ID为 ${id} 的数据`);
+      
+      // 输入验证
+      if (!id || typeof id !== 'string') {
+        console.error('DataStorage: 删除失败 - 无效的ID参数');
+        return false;
+      }
+      
+      // 获取当前数据
+      const data = this.getAllData();
+      const originalLength = data.length;
+      console.log(`DataStorage: 当前存储中的数据数量: ${originalLength}`);
+      
+      // 过滤出不包含指定ID的数据
+      const filteredData = data.filter(item => item.id !== id);
+      const newLength = filteredData.length;
+      
+      // 检查是否有数据被删除
+      if (originalLength !== newLength) {
+        // 保存过滤后的数据
+        this.saveAllData(filteredData);
+        console.log(`DataStorage: ID为 ${id} 的数据删除成功，删除前: ${originalLength} 条，删除后: ${newLength} 条`);
+        return true;
+      } else {
+        console.error(`DataStorage: 删除失败 - 未找到ID为 ${id} 的数据项`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`DataStorage: 删除ID为 ${id} 的数据时发生错误:`, error);
+      return false;
+    }
   }
 
   // 根据ID获取数据
