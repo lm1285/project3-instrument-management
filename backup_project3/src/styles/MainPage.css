@@ -1,0 +1,1456 @@
+/* 主页面容器 */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 顶部导航栏 */
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 64px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-left h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+/* 菜单切换按钮 */
+.menu-toggle {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.menu-toggle:hover {
+  background-color: #f5f5f5;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 退出登录按钮 */
+.logout-button {
+  padding: 8px 16px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+  background: #d32f2f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.2);
+}
+
+.logout-button:active {
+  transform: translateY(0);
+}
+
+/* 主要布局 */
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 侧边栏 */
+.sidebar {
+  width: 240px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 侧边栏导航 */
+.sidebar-nav {
+  padding: 16px 0;
+}
+
+/* 导航项 */
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 24px;
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  margin: 2px 0;
+}
+
+.nav-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+}
+
+/* 导航组 */
+.nav-group {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* 导航标签 */
+.nav-label {
+  flex: 1;
+  text-align: center;
+}
+
+/* 导航箭头 */
+.nav-arrow {
+  font-size: 12px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  margin-left: auto;
+}
+
+.nav-arrow.open {
+  transform: rotate(180deg);
+  color: #1976d2;
+}
+
+.nav-item:hover .nav-arrow {
+  color: #666;
+}
+
+/* 子菜单 */
+.submenu {
+  background: #f8f9fa;
+  border-left: 2px solid #e0e0e0;
+  margin-left: 16px;
+  border-radius: 0 8px 8px 0;
+  overflow: hidden;
+}
+
+/* 子菜单项 */
+.submenu-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 24px 10px 40px;
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 6px;
+  margin: 2px 0;
+}
+
+.submenu-item:hover {
+  background: #f5f5f5;
+  color: #333;
+  transform: translateX(4px);
+}
+
+.submenu-item.active {
+  background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  font-weight: 500;
+  border-right: 3px solid #1976d2;
+  box-shadow: 0 2px 6px rgba(25, 118, 210, 0.1);
+  margin-right: 4px;
+}
+
+.nav-item:hover {
+  background: #f5f5f5;
+  color: #333;
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1976d2;
+  font-weight: 500;
+  border-right: 4px solid #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+}
+
+.nav-item.active:hover {
+  background: linear-gradient(90deg, #bbdefb 0%, #90caf9 100%);
+  transform: translateX(4px);
+}
+
+/* 导航图标 */
+.nav-icon {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.15);
+  color: #1565c0;
+}
+
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  padding: 32px;
+  background: #f5f5f5;
+  overflow-y: auto;
+}
+
+/* 仪器管理操作按钮区域 */
+.instrument-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+/* 操作按钮基础样式 */
+.action-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 100px;
+  justify-content: center;
+}
+
+/* 添加按钮样式 */
+.add-button {
+  background: #4caf50;
+  color: white;
+}
+
+.add-button:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.add-button:active {
+  transform: translateY(0);
+}
+
+/* 删除按钮样式 */
+.delete-button {
+  background: #f44336;
+  color: white;
+}
+
+/* 搜索框容器 */
+.search-container {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+/* 搜索输入框样式 */
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px 20px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  font-size: 14px;
+  background: linear-gradient(145deg, #ffffff, #f5f7fa);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #90caf9;
+  box-shadow: 0 0 0 2px rgba(144, 202, 249, 0.2);
+  background: white;
+}
+
+/* 搜索包装器 */
+.search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* 搜索建议下拉菜单 */
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+/* 搜索建议项 */
+.suggestion-item {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-item:hover {
+  background: #f5f5f5;
+  color: #1976d2;
+}
+
+.search-input::placeholder {
+  color: #9e9e9e;
+  font-style: italic;
+}
+
+/* 搜索框响应式设计 */
+@media (max-width: 768px) {
+  .search-input {
+    max-width: 100%;
+  }
+}
+
+.delete-button:hover {
+  background: #d32f2f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.delete-button:active {
+  transform: translateY(0);
+}
+
+/* 导入按钮样式 */
+.import-button {
+  background: #2196f3;
+  color: white;
+}
+
+.import-button:hover {
+  background: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.import-button:active {
+  transform: translateY(0);
+}
+
+/* 导出按钮样式 */
+.export-button {
+  background: #ff9800;
+  color: white;
+}
+
+.export-button:hover {
+  background: #f57c00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.export-button:active {
+  transform: translateY(0);
+}
+
+/* 功能界面标题 - 浅色现代化设计 */
+.page-header {
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e1e8ed;
+}
+
+.page-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px 0;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.header-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #1976d2, transparent);
+  border-radius: 1px;
+  margin-bottom: 24px;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  text-align: center;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 40px;
+}
+
+.empty-state p {
+  text-align: center;
+}
+
+.empty-state p {
+  font-size: 20px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.empty-subtitle {
+  font-size: 16px !important;
+  color: #666 !important;
+  font-weight: normal !important;
+}
+
+/* 页脚 */
+.main-footer {
+  padding: 16px 24px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.main-footer p {
+  color: #666;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaed 100%);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 表单样式 */
+.instrument-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select,
+.form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="date"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #90caf9;
+  box-shadow: 0 0 0 2px rgba(144, 202, 249, 0.2);
+}
+
+.form-group input[type="file"] {
+  padding: 8px 0;
+}
+
+.file-name {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-button {
+  padding: 10px 20px;
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-button:hover {
+  background: #e0e0e0;
+  border-color: #bbb;
+}
+
+.submit-button {
+  padding: 10px 20px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-button:hover {
+  background: #45a049;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+  }
+  
+  .nav-item {
+    padding: 10px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+  
+  .nav-icon {
+    font-size: 18px;
+  }
+  
+  .submenu-item {
+    padding: 8px 16px 8px 36px;
+    font-size: 13px;
+    border-radius: 5px;
+  }
+  
+  .nav-arrow {
+    font-size: 11px;
+  }
+  
+  /* 响应式：中等屏幕上的按钮样式 */
+  .action-button {
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: 90px;
+  }
+  
+  /* 响应式：中等屏幕上的标题样式 */
+  .page-header h2 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-header {
+    padding: 0 16px;
+  }
+  
+  .header-left h1 {
+    font-size: 18px;
+  }
+  
+  .sidebar {
+    width: 180px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+  }
+  
+  .main-content {
+    padding: 16px;
+  }
+  
+  .empty-state {
+    padding: 20px;
+    min-height: 300px;
+  }
+  
+  .empty-state p {
+    font-size: 18px;
+  }
+  
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 5px;
+  }
+  
+  .submenu {
+    margin-left: 12px;
+  }
+  
+  .submenu-item {
+    padding: 6px 12px 6px 32px;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+  
+  .nav-icon {
+    font-size: 16px;
+  }
+  
+  .nav-arrow {
+    font-size: 10px;
+  }
+  
+  /* 响应式：平板屏幕上的按钮样式 */
+  .instrument-actions {
+    gap: 8px;
+  }
+  
+  .action-button {
+    padding: 7px 14px;
+    font-size: 12px;
+    min-width: 80px;
+  }
+  
+  /* 响应式：平板屏幕上的标题样式 */
+  .page-header h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-layout {
+    position: relative;
+  }
+  
+  .sidebar {
+    width: 240px;
+    position: absolute;
+    left: -240px;
+    height: 100%;
+    z-index: 999;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  .main-content {
+    padding: 16px;
+  }
+  
+  /* 响应式：手机屏幕上的按钮样式 */
+  .instrument-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    display: grid;
+  }
+  
+  .action-button {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: auto;
+    justify-content: center;
+  }
+  
+  /* 响应式：手机屏幕上的标题样式 */
+  .page-header h2 {
+    font-size: 18px;
+  }
+  
+  .header-divider {
+    margin-bottom: 16px;
+  }
+}
+
+/* 仪器列表样式 */
+.instrument-list {
+  margin-top: 24px;
+}
+
+/* 仪器网格布局 */
+.instrument-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* 仪器卡片样式 */
+.instrument-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+/* 仪器列表容器样式 */
+.instrument-list-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-bottom: 24px;
+}
+
+/* 美化横向滚动条 */
+.instrument-list-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.instrument-list-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.instrument-list-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.instrument-list-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* 仪器表格样式 */
+.instrument-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* 表头样式 */
+.instrument-table th {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaed 100%);
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 表格单元格样式 */
+.instrument-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #666;
+  transition: background-color 0.2s ease;
+}
+
+/* 表格行悬停效果 */
+.instrument-table tr:hover td {
+  background-color: #f8f9fa;
+}
+
+/* 表格行选中效果 */
+.instrument-table tr.selected {
+  background-color: #e3f2fd;
+}
+
+/* 勾选框列样式 */
+.checkbox-col {
+  width: 50px;
+  text-align: center;
+}
+
+/* 操作列样式 */
+.action-col {
+  width: 120px;
+  white-space: nowrap;
+}
+
+/* 编辑按钮样式 */
+.edit-btn {
+  padding: 6px 12px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 8px;
+}
+
+.edit-btn:hover {
+  background: #1976d2;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+/* 删除按钮样式 */
+.delete-btn {
+  padding: 6px 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.2);
+}
+
+/* 已使用状态样式 */
+.status-used {
+  background: #e8f5e9;
+  color: #4caf50;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 已使用仪器行样式 */
+.used-instrument {
+  background-color: #f9f9f9;
+}
+
+/* 空数据提示样式 */
+.no-data {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+/* 响应式表格设计 */
+@media (max-width: 1200px) {
+  .instrument-table {
+    font-size: 13px;
+  }
+  
+  .instrument-table th,
+  .instrument-table td {
+    padding: 10px 8px;
+  }
+  
+  .action-col {
+    width: 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .instrument-list-container {
+    overflow-x: auto;
+  }
+  
+  .instrument-table {
+    min-width: 800px;
+  }
+}
+
+@media (max-width: 600px) {
+  .instrument-table {
+    min-width: 600px;
+  }
+  
+  .edit-btn,
+  .delete-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    margin-right: 4px;
+  }
+}
+
+.instrument-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.instrument-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+  border-color: #90caf9;
+}
+
+/* 卡片头部 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.card-header h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 状态徽章 */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-badge.normal {
+  background: #e8f5e9;
+  color: #4caf50;
+}
+
+.status-badge.abnormal {
+  background: #ffebee;
+  color: #f44336;
+}
+
+.status-badge.repairing {
+  background: #fff3e0;
+  color: #ff9800;
+}
+
+.status-badge.scrapped {
+  background: #f5f5f5;
+  color: #9e9e9e;
+}
+
+/* 卡片内容 */
+.card-body {
+  margin-bottom: 16px;
+}
+
+.card-body p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.card-body p strong {
+  color: #333;
+}
+
+/* 卡片操作按钮 */
+.card-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* 编辑按钮 */
+.edit-button {
+  padding: 6px 12px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.edit-button:hover {
+  background: #1976d2;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+/* 操作列样式 */
+.action-col {
+  width: 200px !important;
+  min-width: 200px;
+  padding: 8px;
+}
+
+/* 操作按钮基础样式 */
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 50px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+/* 出库按钮 */
+.out-btn {
+  background: #ff9800;
+  color: white;
+}
+
+.out-btn:hover {
+  background: #f57c00;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.2);
+}
+
+/* 入库按钮 */
+.in-btn {
+  background: #4caf50;
+  color: white;
+}
+
+.in-btn:hover {
+  background: #45a049;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+/* 使用按钮 */
+.use-btn {
+  background: #2196f3;
+  color: white;
+}
+
+.use-btn:hover {
+  background: #1976d2;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+/* 详情按钮 */
+.detail-btn {
+  background: #9c27b0;
+  color: white;
+}
+
+.detail-btn:hover {
+  background: #7b1fa2;
+  box-shadow: 0 2px 4px rgba(156, 39, 176, 0.2);
+}
+
+/* 删除按钮 */
+.delete-btn {
+  background: #f44336;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.2);
+}
+
+/* 详情模态框样式 */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.detail-label {
+  color: #333;
+  font-weight: 600;
+  margin-right: 4px;
+  min-width: 80px;
+  white-space: nowrap;
+  line-height: 1.2;
+  font-size: 13px;
+}
+
+.detail-value {
+  color: #444;
+  flex: 1;
+  word-break: break-word;
+  line-height: 1.2;
+  font-size: 13px;
+}
+
+/* 优化模态框整体样式 */
+.modal {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modal-header {
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 16px;
+  margin-bottom: 0;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-header h2 {
+  margin-bottom: 0;
+  padding: 0;
+  border-bottom: none;
+  width: auto;
+  color: #333;
+  font-size: 18px;
+}
+
+.modal-body {
+  background: white;
+  border-radius: 0 0 8px 8px;
+  margin: 0;
+  padding: 16px;
+}
+
+/* 合并标题和详情容器样式 */
+.merged-detail-container {
+  margin-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: white;
+}
+
+.detail-grid {
+  border-radius: 0;
+  margin: 0;
+}
+
+/* 搜索结果样式 */
+.search-results {
+  margin-top: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.search-results h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 空搜索结果样式 */
+.empty-search {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+/* 仪表板样式 */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 仪表板统计卡片 */
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+/* 统计卡片 */
+.stat-card {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1976d2;
+  margin: 0;
+}
+
+/* 最近添加的仪器 */
+.dashboard-recent {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+}
+
+.dashboard-recent h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 最近列表 */
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 最近列表项 */
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.recent-item:hover {
+  background: #e0e0e0;
+}
+
+.recent-item span:first-child {
+  font-weight: 500;
+  color: #333;
+}
+
+.recent-item span:last-child {
+  font-size: 13px;
+  color: #666;
+}
+
+/* 响应式设计：仪器网格 */
+@media (max-width: 768px) {
+  .instrument-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+  
+  .card-actions {
+    justify-content: stretch;
+  }
+  
+  .edit-button,
+  .delete-button {
+    flex: 1;
+  }
+}
+
+/* 信息看板占位符样式 */
+.dashboard-placeholder {
+  background: white;
+  padding: 60px 20px;
+  margin-top: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-placeholder p {
+  font-size: 18px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* 二维码扫描动画 */
+@keyframes scan {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0;
+  }
+}
