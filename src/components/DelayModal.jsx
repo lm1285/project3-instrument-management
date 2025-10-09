@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 
 const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
   const [delayDaysInput, setDelayDaysInput] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!isOpen) {
       setDelayDaysInput('');
+      setErrorMessage('');
     }
   }, [isOpen]);
 
@@ -13,8 +15,11 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
     if (delayDaysInput && !isNaN(delayDaysInput) && parseInt(delayDaysInput) > 0) {
       onConfirm(parseInt(delayDaysInput));
       setDelayDaysInput('');
+      setErrorMessage('');
     } else {
-      alert('请输入有效的延期天数');
+      setErrorMessage('请输入有效的延期天数');
+      // 3秒后自动清除错误消息
+      setTimeout(() => setErrorMessage(''), 3000);
     }
   };
 
@@ -98,9 +103,24 @@ const DelayModal = ({ isOpen, onClose, onConfirm, managementNumber }) => {
               border: '1px solid #d9d9d9',
               borderRadius: '4px',
               fontSize: '14px',
+              borderColor: errorMessage ? '#ff4d4f' : '#d9d9d9'
             }}
             autoFocus
           />
+          {errorMessage && (
+            <div style={{
+              marginTop: '8px',
+              fontSize: '12px',
+              color: '#ff4d4f',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" style={{ marginRight: '4px', fill: 'currentColor' }}>
+                <path d="M11.396 5.728l-4.184-4.184A1.5 1.5 0 0 0 6 0h0A1.5 1.5 0 0 0 1.5 1.5L5.672 5.672v4.184l-1.672 1.672a1.5 1.5 0 1 0 2.122 2.122l1.672-1.672v-4.184L10.5 11.396a1.5 1.5 0 1 0 2.122-2.122L11.396 5.728z"></path>
+              </svg>
+              {errorMessage}
+            </div>
+          )}
         </div>
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>

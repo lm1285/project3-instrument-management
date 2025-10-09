@@ -1,0 +1,212 @@
+/* Dashboard 组件样式 */
+.dashboard-container {
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 15px 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.refresh-button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.refresh-button:hover {
+  background-color: #45a049;
+}
+
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  font-size: 18px;
+  color: #666;
+}
+
+/* 统计卡片样式 */
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.summary-icon {
+  font-size: 40px;
+  margin-right: 15px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.summary-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* 颜色区分不同类型的警报 */
+.red-alert .summary-value {
+  color: #f44336;
+}
+
+.yellow-alert .summary-value {
+  color: #ff9800;
+}
+
+.stock-alert .summary-value {
+  color: #e91e63;
+}
+
+.total-alert .summary-value {
+  color: #2196F3;
+}
+
+/* 预警详情部分 */
+.dashboard-details {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-details h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 20px;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.alert-section {
+  margin-bottom: 25px;
+}
+
+.alert-section h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #555;
+}
+
+.alert-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.alert-list li {
+  padding: 10px 15px;
+  margin-bottom: 8px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  border-left: 4px solid #ccc;
+  font-size: 14px;
+  color: #333;
+  transition: background-color 0.3s;
+}
+
+.alert-list li:hover {
+  background-color: #f0f0f0;
+}
+
+/* 不同类型预警项的边框颜色 */
+.dashboard-details > div:nth-child(2) .alert-list li {
+  border-left-color: #f44336;
+}
+
+.dashboard-details > div:nth-child(3) .alert-list li {
+  border-left-color: #ff9800;
+}
+
+.dashboard-details > div:nth-child(4) .alert-list li {
+  border-left-color: #e91e63;
+}
+
+/* 无预警信息样式 */
+.no-alerts {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.no-alerts p {
+  font-size: 18px;
+  margin: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 10px;
+  }
+  
+  .dashboard-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-card {
+    padding: 15px;
+  }
+  
+  .summary-icon {
+    font-size: 30px;
+  }
+  
+  .summary-value {
+    font-size: 24px;
+  }
+  
+  .dashboard-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+}

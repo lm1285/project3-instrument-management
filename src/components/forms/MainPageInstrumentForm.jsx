@@ -18,7 +18,7 @@ const MainPageInstrumentForm = ({
   isEditing = false
 }) => {
   // 表单数据状态
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({ 
     id: initialData.id || '',
     managementNumber: initialData.managementNumber || '',
     name: initialData.name || '',
@@ -124,6 +124,26 @@ const MainPageInstrumentForm = ({
       newErrors.nextCalibrationDate = '下次校准日期不能为空';
     }
     
+    // 日期逻辑验证
+    if (formData.calibrationDate && formData.nextCalibrationDate) {
+      const calibrationDate = new Date(formData.calibrationDate);
+      const nextCalibrationDate = new Date(formData.nextCalibrationDate);
+      
+      if (nextCalibrationDate <= calibrationDate) {
+        newErrors.nextCalibrationDate = '下次校准日期必须晚于校准日期';
+      }
+    }
+    
+    // 数值验证
+    if (formData.value && isNaN(Number(formData.value))) {
+      newErrors.value = '请输入有效的数值';
+    }
+    
+    // 不确定度验证
+    if (formData.uncertainty && !/^\d+(\.\d+)?%?$/.test(formData.uncertainty)) {
+      newErrors.uncertainty = '请输入有效的不确定度格式';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -132,20 +152,38 @@ const MainPageInstrumentForm = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      // 确保提交的数据包含ID，如果是新增则生成一个
-      const submitData = {
-        ...formData,
-        id: formData.id || Date.now().toString()
-      };
-      onSubmit(submitData);
+    try {
+      if (validateForm()) {
+        // 确保提交的数据包含ID，如果是新增则生成一个更安全的唯一ID
+        const submitData = {
+          ...formData,
+          id: formData.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          updatedAt: new Date().toISOString()
+        };
+        
+        // 添加创建时间（仅当新增时）
+        if (!isEditing) {
+          submitData.createdAt = new Date().toISOString();
+        }
+        
+        onSubmit(submitData);
+      }
+    } catch (error) {
+      console.error('表单提交过程中发生错误:', error);
+      setErrors(prev => ({
+        ...prev,
+        form: '提交过程中发生错误，请重试'
+      }));
     }
   };
 
   return (
-    <form className="instrument-form" onSubmit={handleSubmit}>
+    <form className="instrument-form" onSubmit={handleSubmit} noValidate>
       <div className="form-header">
         <h2>{isEditing ? '编辑仪器' : '新增仪器'}</h2>
+        {errors.form && (
+          <div className="form-error">{errors.form}</div>
+        )}
       </div>
       
       <div className="form-grid">
@@ -249,9 +287,13 @@ const MainPageInstrumentForm = ({
             name="uncertainty"
             value={formData.uncertainty}
             onChange={handleInputChange}
+            className={errors.uncertainty ? 'error' : ''}
             disabled={loading}
-            placeholder="请输入不确定度"
+            placeholder="请输入不确定度，如：0.5%"
           />
+          {errors.uncertainty && (
+            <span className="error-message">{errors.uncertainty}</span>
+          )}
         </div>
 
         <div className="form-group">
@@ -397,11 +439,15 @@ const MainPageInstrumentForm = ({
             name="value"
             value={formData.value}
             onChange={handleInputChange}
+            className={errors.value ? 'error' : ''}
             disabled={loading}
             step="0.01"
             min="0"
             placeholder="请输入价值"
           />
+          {errors.value && (
+            <span className="error-message">{errors.value}</span>
+          )}
         </div>
 
         {/* 第五行 */}

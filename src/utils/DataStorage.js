@@ -1,4 +1,3 @@
-// DataStorage工具类，用于管理localStorage数据
 /**
  * DataStorage工具类，用于管理localStorage数据
  */
@@ -37,17 +36,55 @@ class DataStorage {
   saveAllData(data) {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(data));
+      return true; // 添加返回值表示成功
     } catch (error) {
       console.error('Error saving data to localStorage:', error);
+      return false; // 添加返回值表示失败
     }
   }
 
   /**
    * 兼容性方法：保存所有数据（别名）
    * @param {Array} data - 要保存的数据数组
+   * @returns {boolean} 保存是否成功
    */
   saveAll(data) {
-    this.saveAllData(data);
+    return this.saveAllData(data);
+  }
+
+  /**
+   * 添加单条数据
+   * @param {Object} item - 要添加的数据项
+   * @returns {Object|null} 添加的数据项或null（如果失败）
+   */
+  saveData(item) {
+    try {
+      // 为新添加的项目生成唯一ID（如果没有）
+      const itemWithId = {
+        ...item,
+        id: item.id || this.generateUniqueId(),
+        createdAt: item.createdAt || new Date().toISOString()
+      };
+      
+      // 保存到localStorage
+      localStorage.setItem(`${this.storageKey}:${itemWithId.id}`, JSON.stringify(itemWithId));
+      
+      // 同时更新集合数据，保持一致性
+      const allData = this.getAllData();
+      const existingIndex = allData.findIndex(existingItem => existingItem.id === itemWithId.id);
+      
+      if (existingIndex !== -1) {
+        allData[existingIndex] = itemWithId;
+      } else {
+        allData.push(itemWithId);
+      }
+      
+      this.saveAllData(allData);
+      return itemWithId;
+    } catch (error) {
+      console.error('Error saving single data item:', error);
+      return null;
+    }
   }
 
   /**
@@ -191,16 +228,37 @@ class DataStorage {
 
   // 根据ID获取数据
   getDataById(id) {
-    const data = this.getAllData();
-    return data.find(item => item.id === id);
+    try {
+      // 先尝试直接从单项存储中获取
+      const itemData = localStorage.getItem(`${this.storageKey}:${id}`);
+      if (itemData) {
+        return JSON.parse(itemData);
+      }
+      
+      // 如果单项存储中没有找到，则从集合中获取
+      const data = this.getAllData();
+      return data.find(item => item.id === id);
+    } catch (error) {
+      console.error(`Error getting data by ID ${id}:`, error);
+      return null;
+    }
   }
 
   // 清除所有数据
   clearData() {
     try {
       localStorage.removeItem(this.storageKey);
+      // 同时清除所有单项存储的数据
+      const data = this.getAllData();
+      data.forEach(item => {
+        if (item.id) {
+          localStorage.removeItem(`${this.storageKey}:${item.id}`);
+        }
+      });
+      return true;
     } catch (error) {
       console.error('Error clearing data from localStorage:', error);
+      return false;
     }
   }
 

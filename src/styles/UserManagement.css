@@ -1,0 +1,349 @@
+/* 用户管理页面样式 */
+.user-management-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.add-user-button {
+  padding: 8px 16px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.add-user-button:hover {
+  background-color: #40a9ff;
+}
+
+/* 用户列表样式 */
+.user-list-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  overflow: hidden;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.user-table th,
+.user-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.user-table th {
+  background-color: #fafafa;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.user-table td {
+  font-size: 14px;
+  color: #666;
+}
+
+.user-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 40px 0 !important;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.close-button:hover {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+/* 表单样式 */
+.user-form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.error-message {
+  display: block;
+  margin-top: 4px;
+  color: #ff4d4f;
+  font-size: 12px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.form-actions button {
+  padding: 8px 16px;
+  border: 1px solid #d9d9d9;
+  background-color: white;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.form-actions button:hover {
+  border-color: #40a9ff;
+  color: #40a9ff;
+}
+
+.form-actions .submit-button {
+  border-color: #1890ff;
+  background-color: #1890ff;
+  color: white;
+}
+
+.form-actions .submit-button:hover {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* 角色控制样式 */
+.user-role-info {
+  padding: 8px 16px;
+  background-color: #f0f5ff;
+  color: #1890ff;
+  border-radius: 4px;
+  font-size: 14px;
+  border: 1px solid #d9ecff;
+}
+
+.no-permission {
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .user-management-container {
+    padding: 12px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .user-table {
+    font-size: 12px;
+  }
+  
+  .user-table th,
+  .user-table td {
+    padding: 8px 12px;
+  }
+  
+  /* 表格在小屏幕上可以水平滚动 */
+  .user-list-container {
+    overflow-x: auto;
+  }
+}
+
+/* 权限配置模态框特定样式 */
+.permission-modal {
+  max-width: 600px;
+}
+
+.permission-list {
+  padding: 16px 0;
+}
+
+.permission-category {
+  margin-bottom: 24px;
+}
+
+.permission-category:last-child {
+  margin-bottom: 0;
+}
+
+.category-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-permissions {
+  padding-left: 16px;
+}
+
+.permission-item {
+  margin-bottom: 8px;
+}
+
+.permission-item:last-child {
+  margin-bottom: 0;
+}
+
+.permission-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.permission-label:hover {
+  background-color: #f5f5f5;
+}
+
+.permission-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.permission-name {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 子分类样式 */
+.permission-subcategory {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding-left: 16px;
+  border-left: 2px solid #e8e8e8;
+}
+
+.subcategory-title {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+}
+
+/* 无权限提示样式 */
+.no-permissions {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  font-size: 14px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  margin-top: 8px;
+}

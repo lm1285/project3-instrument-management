@@ -12,7 +12,6 @@ const Alert = ({
   position = 'top-right' // 'top-right', 'top-center', 'bottom-right', 'bottom-center'
 }) => {
   const [isVisible, setIsVisible] = useState(true);
-  const [timer, setTimer] = useState(null);
 
   // 图标映射
   const iconMap = {
@@ -28,19 +27,18 @@ const Alert = ({
 
   // 设置自动关闭计时器
   useEffect(() => {
-    let newTimer = null;
+    let autoCloseTimer = null;
     
     if (duration > 0) {
-      newTimer = setTimeout(() => {
+      autoCloseTimer = setTimeout(() => {
         setIsVisible(false);
         if (onClose) onClose();
       }, duration);
-      // 不再在effect中更新timer状态，避免无限循环
     }
 
     return () => {
-      if (newTimer) {
-        clearTimeout(newTimer);
+      if (autoCloseTimer) {
+        clearTimeout(autoCloseTimer);
       }
     };
   }, [duration, onClose]);
