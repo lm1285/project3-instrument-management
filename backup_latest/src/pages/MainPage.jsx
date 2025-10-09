@@ -167,6 +167,8 @@ class DataStorage {
   }
 
   // 根据条件搜索数据 - 支持不区分大小写、文字和拼音搜索
+  // 仅对名称、型号、出厂编号、管理编号、测量范围进行搜索
+  // 排除仪器状态为已使用和停用的仪器
   search(query) {
     const data = this.getAll()
     if (!query) return data
@@ -174,8 +176,19 @@ class DataStorage {
     const lowerQuery = query.toLowerCase()
     
     return data.filter(item => {
-      // 检查每个属性值
-      return Object.values(item).some(value => {
+      // 排除仪器状态为已使用和停用的仪器
+      if (item.instrumentStatus === 'used' || item.instrumentStatus === 'stopped') {
+        return false;
+      }
+      
+      // 只在指定字段中搜索
+      const searchFields = ['name', 'model', 'factoryNumber', 'managementNumber', 'measurementRange'];
+      
+      return searchFields.some(field => {
+        const value = item[field];
+        if (value === null || value === undefined) {
+          return false;
+        }
         // 处理字符串类型值
         if (typeof value === 'string') {
           const lowerValue = value.toLowerCase()
@@ -286,21 +299,56 @@ function MainPageFix() {
   useEffect(() => {
     // 检查并清除过期的当天操作记录
     const checkAndRefreshDailyRecords = () => {
-      const allInstruments = instrumentStorage.getAll();
-      const today = new Date().toDateString();
-      const updatedInstruments = allInstruments.map(instrument => {
-        // 检查是否为当天操作记录且未经过延期
-        if (instrument.operationDate === today && !instrument.deletedTodayRecord && !instrument.displayUntil) {
-          // 标记为已删除当天记录，使其在24时后不再显示
-          return { ...instrument, deletedTodayRecord: true };
-        }
-        return instrument;
-      });
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const todayDateString = now.toLocaleDateString('zh-CN');
       
-      // 如果有更新，保存回存储
-      if (updatedInstruments.some((newInst, index) => newInst !== allInstruments[index])) {
-        instrumentStorage.saveAll(updatedInstruments);
-        fetchInstruments();
+      // 接近23:59时（23:58-23:59之间）执行刷新操作
+      const shouldRefresh = currentHour === 23 && currentMinute >= 58;
+      
+      if (shouldRefresh) {
+        const allInstruments = instrumentStorage.getAll();
+        const updatedInstruments = allInstruments.map(instrument => {
+          // 检查条件：
+          // 1. 有出库时间
+          // 2. 有入库时间或操作时间
+          // 3. 入库时间是今天（从入库时间字符串中提取日期部分并与今天比较）
+          const hasOutboundTime = instrument.outboundTime && instrument.outboundTime !== '-';
+          const hasInboundOrUsedTime = (instrument.inboundTime && instrument.inboundTime !== '-') || 
+                                     (instrument.usedTime && instrument.usedTime !== '-');
+          
+          let shouldProcess = false;
+          if (hasOutboundTime && hasInboundOrUsedTime && instrument.inboundTime) {
+            // 从入库时间字符串中提取日期部分（格式为：YYYY-MM-DD HH:mm:ss）
+            const inboundDatePart = instrument.inboundTime.split(' ')[0];
+            // 转换为日期对象进行比较
+            const inboundDate = new Date(inboundDatePart);
+            const formattedInboundDate = inboundDate.toLocaleDateString('zh-CN');
+            
+            // 检查入库日期是否为今天
+            shouldProcess = formattedInboundDate === todayDateString;
+          }
+          
+          if (shouldProcess) {
+            // 清除出库时间、入库时间，并标记删除当天记录
+            return {
+              ...instrument,
+              deletedTodayRecord: true,
+              refreshedAt: new Date().toISOString(),
+              outboundTime: '-',
+              inboundTime: '-'  // 无论原来是否有值，都设置为'-'
+            };
+          }
+          
+          return instrument;
+        });
+        
+        // 如果有更新，保存回存储
+        if (updatedInstruments.some((newInst, index) => newInst !== allInstruments[index])) {
+          instrumentStorage.saveAll(updatedInstruments);
+          fetchInstruments();
+        }
       }
     };
 
@@ -930,7 +978,14 @@ function MainPageFix() {
   }
 
   const menuItems = [
-    { id: 'dashboard', label: '信息看板', icon: '📊' },
+    {
+      id: 'dashboard', 
+      label: '信息看板', 
+      icon: '📊',
+      submenu: [
+        { id: 'field-arrangement', label: '下场安排', icon: '📅' }
+      ]
+    },
     { id: 'instrument-inout', label: '仪器出入', icon: '🚪' },
     { id: 'instrument-management', label: '仪器管理', icon: '⚖️' },
     {
@@ -1558,6 +1613,8 @@ function MainPageFix() {
 
   const toggleSubmenu = (menuId) => {
     setExpandedSubmenu(expandedSubmenu === menuId ? null : menuId)
+    // 同时设置活动菜单项，实现导航
+    setActiveMenuItem(menuId)
   }
 
   useEffect(() => {
@@ -2378,12 +2435,7 @@ function MainPageFix() {
             </>
           )}
 
-          {/* 信息看板占位符 */}
-          {activeMenuItem === 'dashboard' && (
-            <div className="dashboard-placeholder">
-              <p>信息看板功能正在开发中...</p>
-            </div>
-          )}
+
 
           {/* 仪器出入界面 */}
           {activeMenuItem === 'instrument-inout' && (

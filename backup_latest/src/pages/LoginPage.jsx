@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import UserStorage from '../utils/UserStorage'
 import '../styles/LoginPage.css'
 
 function LoginPage() {
@@ -7,14 +8,30 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  
+  // 初始化用户存储
+  const userStorage = new UserStorage()
+  
+  // 初始化默认管理员用户（如果没有用户存在）
+  userStorage.initDefaultAdmin()
 
   const handleLogin = (e) => {
     e.preventDefault()
     
     // 简单的登录验证逻辑（实际应用中应该连接后端API）
     if (username && password) {
-      // 登录成功后跳转到主页面
-      navigate('/main')
+      // 验证用户名和密码
+      const user = userStorage.findUserByUsername(username)
+      
+      if (user && user.password === password) {
+        // 登录成功，保存用户信息到本地存储
+        localStorage.setItem('currentUser', JSON.stringify(user))
+        
+        // 跳转到主页面
+        navigate('/main')
+      } else {
+        setError('用户名或密码错误')
+      }
     } else {
       setError('请输入用户名和密码')
     }

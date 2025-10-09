@@ -898,8 +898,44 @@
 .instrument-table td {
   padding: 12px;
   border-bottom: 1px solid #f0f0f0;
-  color: #666;
-  transition: background-color 0.2s ease;
+}
+
+/* 列标题容器样式 - 确保正确定位列宽调整器 */
+.instrument-table .column-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 列宽调整器样式 - 改进版 */
+.instrument-table .column-resizer {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 100% !important;
+  width: 10px !important;
+  cursor: col-resize !important;
+  z-index: 1000 !important;
+  opacity: 1 !important;
+  background-color: transparent !important;
+}
+
+.instrument-table .column-resizer .resizer-handle {
+  position: absolute !important;
+  top: 50% !important;
+  right: 0 !important;
+  transform: translateY(-50%) !important;
+  width: 4px !important;
+  height: 40px !important;
+  background-color: #1890ff !important;
+  opacity: 1 !important;
+  z-index: 1001 !important;
+}
+
+.instrument-table .column-header {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 /* 表格行悬停效果 */
@@ -1079,6 +1115,11 @@
   color: #9e9e9e;
 }
 
+.status-badge.warning {
+  background: #fff8e1;
+  color: #ffc107;
+}
+
 /* 卡片内容 */
 .card-body {
   margin-bottom: 16px;
@@ -1160,6 +1201,17 @@
 .in-btn:hover {
   background: #45a049;
   box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+/* 借用按钮 */
+.borrow-btn {
+  background: #795548;
+  color: white;
+}
+
+.borrow-btn:hover {
+  background: #6d4c41;
+  box-shadow: 0 2px 4px rgba(121, 85, 72, 0.2);
 }
 
 /* 使用按钮 */

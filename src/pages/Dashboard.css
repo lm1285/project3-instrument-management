@@ -1,0 +1,696 @@
+.dashboard-container {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.current-time {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.refresh-button {
+  padding: 8px 16px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: #357abd;
+  transform: translateY(-1px);
+}
+
+.refresh-button:active {
+  transform: translateY(0);
+}
+
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  transition: transform 0.3s, box-shadow 0.3s;
+  border-left: 4px solid transparent;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.summary-icon {
+  font-size: 32px;
+  margin-right: 16px;
+  width: 40px;
+  text-align: center;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+/* 汇总卡片趋势提示 */
+.summary-trend {
+  font-size: 12px;
+}
+
+.trend-negative {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.trend-warning {
+  color: #ff9800;
+  font-weight: 500;
+}
+
+.trend-info {
+  color: #2196F3;
+  font-weight: 500;
+}
+
+.trend-positive {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.trend-neutral {
+  color: #666;
+  font-weight: 500;
+}
+
+.red-alert {
+  border-left: 4px solid #f44336;
+}
+
+.red-alert .summary-value {
+  color: #f44336;
+}
+
+.yellow-alert {
+  border-left: 4px solid #ff9800;
+}
+
+.yellow-alert .summary-value {
+  color: #ff9800;
+}
+
+.stock-alert {
+  border-left: 4px solid #2196F3;
+}
+
+.stock-alert .summary-value {
+  color: #2196F3;
+}
+
+.total-alert {
+  border-left: 4px solid #9C27B0;
+}
+
+.total-alert .summary-value {
+  color: #4caf50;
+}
+
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 18px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4a90e2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 数据可视化区域 */
+.dashboard-visualization {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.visualization-card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.visualization-card h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.chart-container {
+  height: 200px;
+  width: 100%;
+}
+
+/* 预警规则提示样式 */
+.dashboard-rules-info {
+  background: #fff9c4;
+  border-radius: 8px;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  border-left: 4px solid #ffab00;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rules-text {
+  margin: 0;
+  color: #ff6f00;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-button {
+  background: #757575;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.settings-button:hover {
+  background-color: #616161;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 智能筛选器样式 */
+.dashboard-filter {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  min-width: 160px;
+}
+
+.filter-select:hover {
+  border-color: #4a90e2;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+/* 我的预警待办样式 */
+.dashboard-todos {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #4CAF50;
+}
+
+.dashboard-todos h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.todo-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.todo-item {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.todo-icon {
+  font-size: 24px;
+  min-width: 30px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.todo-content p {
+  margin: 8px 0;
+  line-height: 1.6;
+  color: #555;
+  font-size: 14px;
+}
+
+.todo-content strong {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+/* 预警列表表格样式 */
+.dashboard-details {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-details h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.table-summary {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.alert-table-container {
+  overflow-x: auto;
+  max-height: 600px;
+  position: relative;
+}
+
+.alert-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.alert-table th {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 2px solid #e0e0e0;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.alert-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  color: #333;
+}
+
+/* 高亮单元格 */
+.highlight-cell {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* 预警类型单元格 */
+.alert-type-cell {
+  font-weight: 500;
+}
+
+/* 任务状态选择器 */
+.status-select {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.3s;
+  min-width: 100px;
+}
+
+.status-select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.status-select:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+/* 下一步状态按钮 */
+.next-status-button {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.next-status-button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+/* 完成状态显示 */
+.status-completed {
+  color: #4caf50;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.sort-button {
+  background: none;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.3s;
+}
+
+.sort-button:hover {
+  color: #4a90e2;
+}
+
+.alert-row:hover {
+  background-color: #f0f8ff;
+  transform: scale(1.002);
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+/* 预警级别指示器样式 */
+.alert-level-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.alert-level-red {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.alert-level-yellow {
+  background-color: #fff8e1;
+  color: #ef6c00;
+}
+
+.alert-level-blue {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+/* 天数显示样式 */
+.overdue-days {
+  color: #f44336;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.critical-days {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.remaining-days {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 无预警提示增强 */
+.no-alerts {
+  text-align: center;
+  padding: 60px 20px;
+  color: #757575;
+}
+
+.no-alerts-icon {
+  font-size: 60px;
+  margin-bottom: 15px;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+.no-alerts p {
+  font-size: 18px;
+  margin: 0 0 8px 0;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.no-alerts-subtitle {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .dashboard-visualization {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-filter {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+  
+  .filter-group {
+    width: 100%;
+  }
+  
+  .filter-select {
+    flex: 1;
+    width: 100%;
+  }
+  
+  .alert-table th,
+  .alert-table td {
+    padding: 8px;
+    font-size: 14px;
+  }
+  
+  .dashboard-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .details-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 10px;
+  }
+  
+  .summary-card {
+    padding: 16px;
+  }
+  
+  .dashboard-details,
+  .dashboard-todos,
+  .visualization-card,
+  .dashboard-filter {
+    padding: 15px;
+  }
+  
+  .alert-table th,
+  .alert-table td {
+    padding: 8px;
+    font-size: 12px;
+  }
+  
+  .next-status-button,
+  .settings-button,
+  .refresh-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .no-alerts {
+    padding: 40px 10px;
+  }
+  
+  .no-alerts-icon {
+    font-size: 40px;
+  }
+}
+
+/* 滚动条美化 */
+.alert-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.alert-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.alert-table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.alert-table-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
