@@ -379,7 +379,8 @@ function MainPageFix() {
     instrumentStatus: '',
     type: '',
     calibrationStatus: '',
-    department: ''
+    department: '',
+    quantity: ''
   })
   
   // 获取当前时间，精确到秒
@@ -1033,7 +1034,8 @@ function MainPageFix() {
       instrumentStatus: '',
       inOutStatus: '',
       remarks: '',
-      attachments: ''
+      attachments: '',
+      quantity: ''
     })
   }
 
@@ -2803,6 +2805,20 @@ function MainPageFix() {
                           <option value="auxiliary">辅助设备</option>
                         </select>
                       </div>
+                      {!editingInstrumentId && (
+                        <div className="form-group">
+                          <label htmlFor="quantity">数量</label>
+                          <input
+                            type="number"
+                            id="quantity"
+                            name="quantity"
+                            value={instrumentForm.quantity}
+                            onChange={handleInputChange}
+                            min="1"
+                            placeholder="请输入数量"
+                          />
+                        </div>
+                      )}
                       <div className="form-group">
                         <label htmlFor="name">名称</label>
                         <input

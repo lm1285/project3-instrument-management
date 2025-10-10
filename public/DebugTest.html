@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表格编辑调试工具</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+    }
+    h2 {
+      color: #2196f3;
+      margin-top: 0;
+    }
+    .role-buttons {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #e0e0e0;
+    }
+    .super-admin-btn {
+      background-color: #f8bbd0;
+      border-color: #e91e63;
+    }
+    .super-admin-btn:hover {
+      background-color: #f48fb1;
+    }
+    .admin-btn {
+      background-color: #bbdefb;
+      border-color: #2196f3;
+    }
+    .admin-btn:hover {
+      background-color: #90caf9;
+    }
+    .user-btn {
+      background-color: #c8e6c9;
+      border-color: #4caf50;
+    }
+    .user-btn:hover {
+      background-color: #a5d6a7;
+    }
+    .info-box {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+    }
+    .storage-content {
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      background-color: #263238;
+      color: #eceff1;
+      padding: 15px;
+      border-radius: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .btn-primary {
+      background-color: #2196f3;
+      color: white;
+      border-color: #1976d2;
+    }
+    .btn-primary:hover {
+      background-color: #1976d2;
+    }
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+      border-color: #d32f2f;
+    }
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+    .debug-steps {
+      background-color: #fff3e0;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #ff9800;
+    }
+    ul {
+      margin-top: 5px;
+    }
+    li {
+      margin: 5px 0;
+    }
+    .debug-value {
+      color: #e91e63;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>表格编辑功能调试工具</h1>
+  
+  <div class="section">
+    <h2>1. 角色设置</h2>
+    <p>点击下方按钮设置不同的用户角色，然后点击"前往下场安排页面"按钮进行测试：</p>
+    
+    <div class="role-buttons">
+      <button id="superAdminBtn" class="super-admin-btn">
+        设置为主管理员 (superAdmin)
+      </button>
+      <button id="adminBtn" class="admin-btn">
+        设置为管理员 (admin)
+      </button>
+      <button id="userBtn" class="user-btn">
+        设置为普通用户 (user)
+      </button>
+    </div>
+    
+    <div class="info-box">
+      <p>当前角色: <span id="currentRole" class="debug-value">未设置</span></p>
+      <p>isAdmin 状态: <span id="isAdminStatus" class="debug-value">未知</span></p>
+    </div>
+    
+    <button id="goToFieldArrangement" class="btn-primary">
+      前往下场安排页面
+    </button>
+  </div>
+  
+  <div class="section">
+    <h2>2. LocalStorage 调试</h2>
+    <p>查看和管理 localStorage 中的相关数据：</p>
+    
+    <div style="margin: 10px 0;">
+      <button id="viewStorageBtn">查看 localStorage 内容</button>
+      <button id="clearStorageBtn" class="btn-danger">清空所有测试数据</button>
+    </div>
+    
+    <div class="storage-content" id="storageContent">
+      点击上方按钮查看 localStorage 内容
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>3. 调试步骤</h2>
+    <div class="debug-steps">
+      <p>如果表格无法编辑，请按照以下步骤排查：</p>
+      <ol>
+        <li>确认已正确设置角色为 <strong>superAdmin</strong> 或 <strong>admin</strong></li>
+        <li>检查上方显示的 "当前角色" 是否正确</li>
+        <li>检查 localStorage 中的 "userRole" 值是否正确</li>
+        <li>前往下场安排页面，确认是否显示管理员工具栏</li>
+        <li>尝试点击单元格，查看是否出现输入框</li>
+      </ol>
+    </div>
+  </div>
+  
+  <script>
+    // 显示当前角色
+    const showCurrentRole = () => {
+      const currentRole = localStorage.getItem('userRole') || '未设置';
+      document.getElementById('currentRole').textContent = currentRole;
+      
+      // 计算 isAdmin 状态
+      const isAdmin = currentRole === 'admin' || currentRole === 'superAdmin';
+      document.getElementById('isAdminStatus').textContent = isAdmin ? 'true (可编辑)' : 'false (仅查看)';
+    };
+    
+    // 设置角色
+    const setRole = (role) => {
+      localStorage.setItem('userRole', role);
+      showCurrentRole();
+      alert(`已成功设置角色为: ${role}`);
+    };
+    
+    // 查看 localStorage 内容
+    const viewStorageContent = () => {
+      let content = "LocalStorage 内容：\n";
+      
+      // 显示所有相关的键值对
+      const keysToShow = [
+        'userRole',
+        'fieldArrangementData',
+        'fieldArrangementMergedCells',
+        'fieldArrangementHistory',
+        'columnWidths'
+      ];
+      
+      keysToShow.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          // 尝试格式化 JSON 数据以提高可读性
+          try {
+            const parsedValue = JSON.parse(value);
+            content += `\n${key}: ${JSON.stringify(parsedValue, null, 2)}\n`;
+          } catch (e) {
+            content += `\n${key}: ${value}\n`;
+          }
+        } else {
+          content += `\n${key}: (不存在)\n`;
+        }
+      });
+      
+      // 显示其他所有键值对
+      let hasOtherKeys = false;
+      content += "\n其他 localStorage 内容：\n";
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!keysToShow.includes(key)) {
+          hasOtherKeys = true;
+          const value = localStorage.getItem(key);
+          content += `\n${key}: ${value}\n`;
+        }
+      }
+      
+      if (!hasOtherKeys) {
+        content += "(无其他内容)\n";
+      }
+      
+      document.getElementById('storageContent').textContent = content;
+    };
+    
+    // 清空测试数据
+    const clearStorageData = () => {
+      if (window.confirm('确定要清空所有测试数据吗？这将删除 userRole 以及所有表格相关数据。')) {
+        const keysToRemove = [
+          'userRole',
+          'fieldArrangementData',
+          'fieldArrangementMergedCells',
+          'fieldArrangementHistory',
+          'columnWidths'
+        ];
+        
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+        });
+        
+        showCurrentRole();
+        viewStorageContent();
+        alert('已清空所有测试数据');
+      }
+    };
+    
+    // 绑定按钮事件
+    document.getElementById('superAdminBtn').addEventListener('click', () => setRole('superAdmin'));
+    document.getElementById('adminBtn').addEventListener('click', () => setRole('admin'));
+    document.getElementById('userBtn').addEventListener('click', () => setRole('user'));
+    document.getElementById('goToFieldArrangement').addEventListener('click', () => {
+      window.location.href = '/';
+    });
+    document.getElementById('viewStorageBtn').addEventListener('click', viewStorageContent);
+    document.getElementById('clearStorageBtn').addEventListener('click', clearStorageData);
+    
+    // 初始显示
+    showCurrentRole();
+  </script>
+</body>
+</html>

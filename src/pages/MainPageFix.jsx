@@ -502,7 +502,9 @@ function MainPageFix() {
     instrumentStatus: '',
     type: '',
     calibrationStatus: '',
-    department: ''
+    department: '',
+    quantity: '1',
+    factoryNumber: ''
   })
   
   // 获取当前时间，精确到秒
@@ -1117,6 +1119,7 @@ function MainPageFix() {
       measurementUncertainty: '',
       calibrationStatus: '',
       calibrationDate: '',
+      quantity: '1',
       recalibrationDate: '',
       period: '',
       traceabilityAgency: '',
@@ -1234,12 +1237,47 @@ function MainPageFix() {
       }
     } else {
       // 添加模式
-      result = instrumentStorage.add(instrumentForm);
-      if (result) {
+      const quantity = parseInt(instrumentForm.quantity) || 1;
+      let allSuccess = true;
+      
+      if (quantity > 1) {
+        // 批量添加模式
+        for (let i = 1; i <= quantity; i++) {
+          // 创建带有序号的出厂编号
+          const serialFactoryNumber = instrumentForm.factoryNumber ? 
+            `${instrumentForm.factoryNumber}-${i}` : `No-${i}`;
+          
+          // 创建新的仪器对象，确保每个对象都有唯一ID
+          const newInstrument = {
+            ...instrumentForm,
+            factoryNumber: serialFactoryNumber,
+            id: undefined, // 让storage自动生成唯一ID
+            createdAt: new Date().toISOString()
+          };
+          
+          const batchResult = instrumentStorage.add(newInstrument);
+          if (!batchResult) {
+            allSuccess = false;
+            break;
+          }
+        }
+      } else {
+        // 单个添加模式
+        result = instrumentStorage.add(instrumentForm);
+        if (result) {
+          allSuccess = true;
+        } else {
+          allSuccess = false;
+        }
+      }
+      
+      if (allSuccess) {
         setShowAddModal(false);
         fetchInstruments(); // 重新获取列表数据
         // 显示成功提示
-        setAlertMessage({ message: '仪器添加成功！', type: 'success' });
+        const successMessage = quantity > 1 ? 
+          `成功批量添加 ${quantity} 台仪器！` : '仪器添加成功！';
+        setAlertMessage({ message: successMessage, type: 'success' });
       } else {
         setAlertMessage({ message: '添加失败，请重试', type: 'error' });
       }
@@ -2044,7 +2082,7 @@ function MainPageFix() {
             <FieldArrangement />
           )}
 
-          {activeMenuItem === 'instrument-management' && permissionChecker.hasPermission('instrument-management-list') && (
+          {activeMenuItem === 'instrument-management' && (
             <>
               {/* 格式提示 */}
               <div className="format-tips">
@@ -2750,7 +2788,7 @@ function MainPageFix() {
 
 
           {/* 仪器出入界面 */}
-          {activeMenuItem === 'instrument-inout' && permissionChecker.hasPermission('instrument-inout-list') && (
+          {activeMenuItem === 'instrument-inout' && (
             <>
               {/* 搜索和筛选区域 - 独立的搜索框 */}
               <div style={{ 
@@ -3173,6 +3211,20 @@ function MainPageFix() {
                           <option value="auxiliary">辅助设备</option>
                         </select>
                       </div>
+                      {!editingInstrumentId && (
+                        <div className="form-group">
+                          <label htmlFor="quantity">数量</label>
+                          <input
+                            type="number"
+                            id="quantity"
+                            name="quantity"
+                            value={instrumentForm.quantity}
+                            onChange={handleInputChange}
+                            min="1"
+                            placeholder="请输入数量"
+                          />
+                        </div>
+                      )}
                       <div className="form-group">
                         <label htmlFor="name">名称</label>
                         <input

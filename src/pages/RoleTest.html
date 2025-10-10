@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>角色测试页面</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+    }
+    .role-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #e0e0e0;
+    }
+    .super-admin-btn {
+      background-color: #f8bbd0;
+      border-color: #e91e63;
+    }
+    .super-admin-btn:hover {
+      background-color: #f48fb1;
+    }
+    .admin-btn {
+      background-color: #bbdefb;
+      border-color: #2196f3;
+    }
+    .admin-btn:hover {
+      background-color: #90caf9;
+    }
+    .user-btn {
+      background-color: #c8e6c9;
+      border-color: #4caf50;
+    }
+    .user-btn:hover {
+      background-color: #a5d6a7;
+    }
+    .current-role {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>角色测试工具</h1>
+  <p>点击下方按钮设置不同的用户角色，然后页面将跳转到下场安排页面</p>
+  
+  <div class="role-buttons">
+    <button id="superAdminBtn" class="super-admin-btn">
+      设置为主管理员 (superAdmin)
+    </button>
+    <button id="adminBtn" class="admin-btn">
+      设置为管理员 (admin)
+    </button>
+    <button id="userBtn" class="user-btn">
+      设置为普通用户 (user)
+    </button>
+  </div>
+  
+  <div class="current-role">
+    <p>当前角色: <span id="currentRole"></span></p>
+  </div>
+  
+  <script>
+    // 显示当前角色
+    const showCurrentRole = () => {
+      const currentRole = localStorage.getItem('userRole') || '未设置';
+      document.getElementById('currentRole').textContent = currentRole;
+    };
+    
+    // 设置角色并跳转到下场安排页面
+    const setRoleAndRedirect = (role) => {
+      localStorage.setItem('userRole', role);
+      window.location.href = '/';
+    };
+    
+    // 绑定按钮事件
+    document.getElementById('superAdminBtn').addEventListener('click', () => {
+      setRoleAndRedirect('superAdmin');
+    });
+    
+    document.getElementById('adminBtn').addEventListener('click', () => {
+      setRoleAndRedirect('admin');
+    });
+    
+    document.getElementById('userBtn').addEventListener('click', () => {
+      setRoleAndRedirect('user');
+    });
+    
+    // 初始显示当前角色
+    showCurrentRole();
+  </script>
+</body>
+</html>
