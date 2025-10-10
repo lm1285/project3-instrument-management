@@ -120,6 +120,44 @@ function Dashboard() {
         }
       });
       
+      // 检查同一出厂编号（带序号）的仪器库存情况
+      // 1. 分组统计具有相同基础出厂编号的仪器
+      const baseFactoryNumberGroups = {};
+      allInstruments.forEach(instrument => {
+        if (instrument.factoryNumber) {
+          // 提取基础出厂编号（去掉序号部分）
+          const baseNumber = instrument.factoryNumber.split('-').slice(0, -1).join('-') || instrument.factoryNumber;
+          if (!baseFactoryNumberGroups[baseNumber]) {
+            baseFactoryNumberGroups[baseNumber] = [];
+          }
+          baseFactoryNumberGroups[baseNumber].push(instrument);
+        }
+      });
+      
+      // 2. 对于每组，如果总数为1，添加库存不足预警
+      Object.keys(baseFactoryNumberGroups).forEach(baseNumber => {
+        const group = baseFactoryNumberGroups[baseNumber];
+        if (group.length === 1) {
+          const instrument = group[0];
+          // 检查该仪器是否已经在预警列表中
+          const isAlreadyInAlerts = unifiedAlerts.some(alert => 
+            alert.id === instrument.id && alert.alertType === 'stock'
+          );
+          
+          // 只添加不在预警列表中的仪器
+          if (!isAlreadyInAlerts) {
+            unifiedAlerts.push({
+              ...instrument,
+              alertLevel: 'blue',
+              alertType: 'stock',
+              daysToAction: 0,
+              keyDate: null,
+              alertTitle: '库存不足'
+            });
+          }
+        }
+      });
+      
       // 计算各类型预警数量
       const redAlertCount = unifiedAlerts.filter(alert => alert.alertLevel === 'red').length;
       const yellowAlertCount = unifiedAlerts.filter(alert => alert.alertLevel === 'yellow').length;

@@ -1,51 +1,54 @@
-/* 下场安排界面主容器 */
+/* 下场安排页面的样式 */
+
 .field-arrangement-container {
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f5f5;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 /* 页面头部 */
 .header {
-  margin-bottom: 20px;
-  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .header h1 {
+  margin: 0;
   color: #333;
   font-size: 24px;
-  margin: 0 0 10px 0;
 }
 
-/* 查看模式提示 */
 .view-mode-notice {
   color: #666;
   font-size: 14px;
+  background-color: #fff9e6;
   padding: 8px 12px;
-  background-color: #f0f0f0;
   border-radius: 4px;
-  border-left: 4px solid #999;
-  margin-bottom: 10px;
+  border: 1px solid #ffd700;
 }
 
-/* 成功提示消息 */
 .success-message {
   position: fixed;
   top: 20px;
   right: 20px;
   background-color: #4caf50;
   color: white;
-  padding: 12px 20px;
+  padding: 12px 24px;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  animation: slideInRight 0.3s ease-out;
+  animation: slideIn 0.3s ease-out;
 }
 
-@keyframes slideInRight {
+@keyframes slideIn {
   from {
     transform: translateX(100%);
     opacity: 0;
@@ -56,21 +59,18 @@
   }
 }
 
-/* 工具栏 */
+/* 工具栏样式 */
 .toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tool-group {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tool-btn {
@@ -80,319 +80,240 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .tool-btn:hover {
-  background-color: #f5f5f5;
-  border-color: #ccc;
+  background-color: #f0f0f0;
+  border-color: #bbb;
 }
 
 .tool-btn.primary {
-  background-color: #007bff;
+  background-color: #1976d2;
   color: white;
-  border-color: #007bff;
+  border-color: #1976d2;
 }
 
 .tool-btn.primary:hover {
-  background-color: #0056b3;
-  border-color: #004085;
+  background-color: #1565c0;
 }
 
 .tool-btn.danger {
-  background-color: #dc3545;
+  background-color: #f44336;
   color: white;
-  border-color: #dc3545;
+  border-color: #f44336;
 }
 
 .tool-btn.danger:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: #d32f2f;
 }
 
-.tool-btn:disabled {
-  background-color: #6c757d;
-  color: white;
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-/* 表格包装器 */
+/* 表格容器样式 */
 .table-wrapper {
-  overflow-x: auto;
-  border: 1px solid #eee;
+  flex: 1;
+  overflow: auto;
+  background-color: white;
   border-radius: 4px;
-  background-color: #fff;
-  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  min-height: 0;
 }
 
-/* 表格容器 - 使用grid布局实现固定列 */
 .table-container {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  width: fit-content;
+  min-width: 100%;
 }
 
-/* 表头固定区域 */
+/* 表头样式 */
 .frozen-header-row {
   display: grid;
-  grid-template-columns: 60px repeat(auto-fit, minmax(120px, 1fr));
   background-color: #f8f9fa;
+  border-bottom: 2px solid #e0e0e0;
   position: sticky;
   top: 0;
   z-index: 10;
+  padding: 0;
+  margin: 0;
 }
 
-/* 表格主体 */
+.header-cell {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: bold;
+  border-right: 1px solid #e0e0e0;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.header-cell.frozen {
+  position: sticky;
+  left: 0;
+  background-color: #f8f9fa;
+  z-index: 5;
+  border-right: 2px solid #e0e0e0;
+}
+
+/* 表格主体样式 */
 .table-body {
   display: flex;
   flex-direction: column;
 }
 
-/* 表格行 */
 .table-row {
   display: grid;
-  grid-template-columns: 60px repeat(auto-fit, minmax(120px, 1fr));
-  border-top: 1px solid #eee;
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s ease;
 }
 
 .table-row:hover {
   background-color: #f8f9fa;
 }
 
-/* 表头单元格 */
-.header-cell {
-  padding: 12px;
-  font-weight: 600;
-  color: #495057;
-  text-align: left;
-  border-right: 1px solid #eee;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  background-color: #f8f9fa;
-}
-
-.header-cell:last-child {
-  border-right: none;
-}
-
-/* 行号单元格 */
-.row-number-cell {
-  position: relative;
-  padding: 8px;
-  font-weight: 600;
-  color: #6c757d;
-  text-align: center;
-  background-color: #f8f9fa;
-  border-right: 1px solid #eee;
-}
-
-/* 行操作按钮组 */
-.row-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.row-number-cell:hover .row-actions {
-  opacity: 1;
-}
-
-.row-actions button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  font-size: 12px;
-  line-height: 1;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.row-actions button:hover {
-  opacity: 1;
-}
-
-.row-actions .delete-btn {
-  color: #dc3545;
-}
-
-/* 表格单元格 */
+/* 单元格样式 */
 .table-cell {
   padding: 8px;
-  border-right: 1px solid #eee;
-  min-height: 40px;
+  border-right: 1px solid #e0e0e0;
   position: relative;
-}
-
-.table-cell:last-child {
-  border-right: none;
-}
-
-/* 选中的单元格 */
-.table-cell.selected {
-  background-color: #e3f2fd;
-  border: 1px solid #007bff;
-  z-index: 5;
-}
-
-/* 单元格输入框 */
-.cell-input {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 0;
-  font-size: 14px;
-  box-sizing: border-box;
-  background-color: white;
-  min-height: 24px;
-  cursor: text;
-  z-index: 10;
-  position: relative;
-  display: block;
-}
-
-.cell-input:focus {
-  outline: none;
-  border: 1px solid #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  z-index: 20;
-}
-
-/* 确保表格单元格不会阻止输入框的点击 */
-.table-cell {
-  position: relative;
-}
-
-.table-cell.selected .cell-input {
-  border: 1px solid #007bff;
-}
-
-/* 单元格显示值 */
-.cell-value {
-  display: block;
-  padding: 4px 8px;
-  min-height: 24px;
-  font-size: 14px;
-  color: #333;
-}
-
-/* 固定列样式 */
-.frozen-cell {
-  position: sticky;
-  left: 0;
-  background-color: #f8f9fa;
-  z-index: 5;
+  overflow: hidden;
+  min-width: 80px;
 }
 
 .table-cell.frozen {
   position: sticky;
-  left: 60px; /* 行号列宽度 */
+  left: 0;
   background-color: white;
-  z-index: 4;
-  border-right: 1px solid #eee;
+  border-right: 2px solid #e0e0e0;
 }
 
-.header-cell.frozen {
-  position: sticky;
-  left: 60px; /* 行号列宽度 */
-  background-color: #f8f9fa;
-  z-index: 15;
-  border-right: 1px solid #eee;
+.table-cell.selected {
+  background-color: #e3f2fd;
+  border: 2px solid #1976d2;
+  padding: 6px;
+  z-index: 1;
 }
 
-/* 编辑历史面板 */
-.history-panel {
-  margin-top: 30px;
-  padding: 20px;
-  background-color: #f8f9fa;
+.cell-input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #1976d2;
   border-radius: 4px;
-  border: 1px solid #e9ecef;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
 }
 
-.history-panel h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #333;
-  font-size: 18px;
+.cell-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  display: block;
 }
 
-.history-list {
+/* 列宽调整器样式 */
+.column-resizers-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.column-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  pointer-events: auto;
+  background-color: transparent;
+}
+
+.column-resizer.full-height {
+  height: 100%;
+}
+
+.column-resizer:hover {
+  background-color: #1976d2;
+}
+
+/* 编辑历史面板样式 */
+.history-panel {
+  margin-top: 16px;
+  background-color: white;
+  border-radius: 4px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   max-height: 200px;
   overflow-y: auto;
 }
 
+.history-panel h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .history-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #e9ecef;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
   font-size: 14px;
 }
 
-.history-item:last-child {
-  border-bottom: none;
-}
-
 .history-user {
-  font-weight: 600;
-  color: #007bff;
-  min-width: 100px;
+  font-weight: bold;
+  color: #1976d2;
+  min-width: 80px;
 }
 
 .history-action {
   flex: 1;
-  margin: 0 10px;
-  color: #495057;
+  color: #333;
+  margin: 0 12px;
 }
 
 .history-time {
-  color: #6c757d;
+  color: #666;
   font-size: 12px;
-  white-space: nowrap;
+  min-width: 80px;
+  text-align: right;
 }
 
-/* 响应式设计 */
+.no-history {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* 响应式调整 */
 @media (max-width: 768px) {
-  .field-arrangement-container {
-    padding: 10px;
-  }
-  
-  .header h1 {
-    font-size: 20px;
+  .header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
   }
   
   .toolbar {
     flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
   }
   
   .tool-group {
-    justify-content: center;
-  }
-  
-  .table-wrapper {
-    font-size: 12px;
-  }
-  
-  .frozen-header-row,
-  .table-row {
-    grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr));
-  }
-  
-  .header-cell,
-  .table-cell {
-    padding: 6px;
-  }
-  
-  .history-panel {
-    padding: 15px;
+    flex-wrap: wrap;
   }
   
   .history-item {
@@ -401,76 +322,7 @@
     gap: 4px;
   }
   
-  .history-user,
-  .history-action,
   .history-time {
-    width: 100%;
-  }
-}
-
-/* 滚动条样式 */
-.table-wrapper::-webkit-scrollbar,
-.history-list::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.table-wrapper::-webkit-scrollbar-track,
-.history-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.table-wrapper::-webkit-scrollbar-thumb,
-.history-list::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-.table-wrapper::-webkit-scrollbar-thumb:hover,
-.history-list::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* 合并单元格样式 */
-.table-cell[style*="grid-row"],
-.table-cell[style*="grid-column"] {
-  position: relative;
-}
-
-/* 确保表格在各种缩放比例下保持良好显示 */
-@media (max-height: 600px) {
-  .history-panel {
-    margin-top: 20px;
-  }
-  
-  .history-list {
-    max-height: 150px;
-  }
-}
-
-/* 打印样式 */
-@media print {
-  .toolbar,
-  .row-actions,
-  .success-message,
-  .history-panel {
-    display: none !important;
-  }
-  
-  .table-wrapper {
-    border: none;
-    overflow: visible;
-  }
-  
-  .table-cell,
-  .header-cell {
-    border: 1px solid #ccc;
-  }
-  
-  .frozen-cell,
-  .table-cell.frozen,
-  .header-cell.frozen {
-    position: static;
+    text-align: left;
   }
 }
