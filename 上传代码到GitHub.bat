@@ -26,8 +26,7 @@ git add -A -- . ^
   ":(exclude)backend/node_modules" ":(exclude)backend/node_modules/**" ^
   ":(exclude)backend/data" ":(exclude)backend/data/**" ^
   ":(exclude)backend/backups" ":(exclude)backend/backups/**" ^
-  ":(exclude)*.db" ":(exclude)*.sqlite" ^
-  ":(exclude)阿里云部署配置.bat"
+  ":(exclude)*.db" ":(exclude)*.sqlite"
 if errorlevel 1 goto :failed
 
 git diff --cached --quiet

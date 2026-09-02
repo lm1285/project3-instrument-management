@@ -1,6 +1,6 @@
 @echo off
 setlocal
-call "%~dp0阿里云部署核心.bat" CODE
+call "%~dp0aliyun-deploy-core.bat" CODE
 set "RESULT=%ERRORLEVEL%"
 if "%RESULT%"=="0" (
   echo.

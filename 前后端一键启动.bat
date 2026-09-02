@@ -26,7 +26,7 @@ if not defined NPM_CMD (
     exit /b 1
 )
 
-if not exist "node_modules" (
+if not exist "node_modules\.bin\vite.cmd" (
     echo [INFO] Installing frontend dependencies...
     call "%NPM_CMD%" install
     if errorlevel 1 (
@@ -36,7 +36,7 @@ if not exist "node_modules" (
     )
 )
 
-if not exist "backend\node_modules" (
+if not exist "backend\node_modules\.bin\ts-node-dev.cmd" (
     echo [INFO] Installing backend dependencies...
     pushd "backend"
     call "%NPM_CMD%" install
