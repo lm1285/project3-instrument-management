@@ -2,6 +2,15 @@
 setlocal
 cd /d "%~dp0"
 
+where git >nul 2>&1
+if errorlevel 1 set "PATH=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd;%PATH%"
+where git >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Git was not found. Please install Git for Windows.
+  pause
+  exit /b 1
+)
+
 echo [1/4] Checking branch...
 for /f "delims=" %%B in ('git branch --show-current') do set "CURRENT_BRANCH=%%B"
 if /I not "%CURRENT_BRANCH%"=="main" (
