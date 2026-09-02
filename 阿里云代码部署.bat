@@ -1,6 +1,8 @@
 @echo off
 setlocal
-call "%~sdp0aliyun-deploy-core.bat" CODE
+pushd "%~dp0"
+call aliyun-deploy-core.bat CODE
+popd
 set "RESULT=%ERRORLEVEL%"
 if "%RESULT%"=="0" (
   echo.

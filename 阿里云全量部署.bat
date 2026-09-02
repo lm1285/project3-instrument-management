@@ -3,7 +3,9 @@ setlocal
 echo [WARNING] This will replace cloud data with local data.
 choice /C YN /N /M "Continue? [Y/N] "
 if errorlevel 2 exit /b 0
-call "%~sdp0aliyun-deploy-core.bat" FULL
+pushd "%~dp0"
+call aliyun-deploy-core.bat FULL
+popd
 set "RESULT=%ERRORLEVEL%"
 if "%RESULT%"=="0" (
   echo.

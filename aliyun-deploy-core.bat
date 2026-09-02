@@ -19,7 +19,7 @@ set "SERVER_USER=root"
 set "SERVER_PORT=22"
 REM Per-computer settings can be placed in aliyun-deploy-config.bat (ignored by Git).
 REM The file may define SSH_KEY_PATH, SERVER_IP, SERVER_USER, or SERVER_PORT.
-if exist "%~sdp0aliyun-deploy-config.bat" call "%~sdp0aliyun-deploy-config.bat"
+if exist "aliyun-deploy-config.bat" call "aliyun-deploy-config.bat"
 REM SSH_KEY_PATH can also be supplied by the caller. Otherwise use the current user profile.
 if not defined SSH_KEY_PATH set "SSH_KEY_PATH=%USERPROFILE%\.ssh\instrument_management_aliyun"
 REM Fallback for the key downloaded on this computer.
@@ -28,7 +28,7 @@ set "DEPLOY_DIR=/opt/instrument-management"
 set "PROJECT_NAME=project3-instrument-management"
 set "NGINX_WEB_ROOT=/var/www/wzglpt"
 set "REMOTE_ARCHIVE=/tmp/project3_deploy_bundle.tar"
-set "SOURCE_DIR=%~sdp0."
+set "SOURCE_DIR=."
 REM Use a registry reachable from the ECS host. Override by setting this before running the script.
 if not defined NPM_REGISTRY set "NPM_REGISTRY=https://registry.npmmirror.com"
 set "NPM_FLAGS=--registry=%NPM_REGISTRY% --no-audit --fund=false --fetch-timeout=120000 --fetch-retries=2 --fetch-retry-factor=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000"
