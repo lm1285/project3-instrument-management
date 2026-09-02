@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~sdp0"
 
 echo Checking local changes...
 for /f "delims=" %%A in ('git status --porcelain') do (

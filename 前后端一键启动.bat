@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~sdp0"
 cls
 
 set "NPM_CMD="
@@ -50,14 +50,14 @@ if not exist "backend\node_modules\.bin\ts-node-dev.cmd" (
 )
 
 echo [INFO] Starting frontend and backend...
-start "Frontend" powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "& '%NPM_CMD%' run dev --prefix '%~dp0'"
+start "Frontend" powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "& '%NPM_CMD%' run dev --prefix '%~sdp0'"
 if errorlevel 1 (
     echo [ERROR] Frontend failed to start.
     pause
     exit /b 1
 )
 
-start "Backend" powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "$env:PORT='3003'; $env:NODE_ENV='development'; & '%NPM_CMD%' run dev --prefix '%~dp0backend'"
+start "Backend" powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "$env:PORT='3003'; $env:NODE_ENV='development'; & '%NPM_CMD%' run dev --prefix '%~sdp0backend'"
 if errorlevel 1 (
     echo [ERROR] Backend failed to start.
     pause
