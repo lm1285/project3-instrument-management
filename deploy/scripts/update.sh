@@ -4,11 +4,19 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/wzglpt/app}"
 WEB_DIR="${WEB_DIR:-/var/www/wzglpt}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-wzglpt-backend}"
+GIT_REMOTE="${GIT_REMOTE:-origin}"
+GIT_BRANCH="${GIT_BRANCH:-main}"
 
 cd "$APP_DIR"
 
 echo "[1/6] Pull latest code"
-git pull --rebase
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Refusing to update: local changes exist in $APP_DIR. Commit or stash them first."
+  exit 1
+fi
+git fetch "$GIT_REMOTE" "$GIT_BRANCH"
+git switch "$GIT_BRANCH"
+git pull --ff-only "$GIT_REMOTE" "$GIT_BRANCH"
 
 echo "[2/6] Install frontend deps"
 npm ci
@@ -28,4 +36,3 @@ npm run build
 echo "[6/6] Restart backend service"
 sudo systemctl restart "$BACKEND_SERVICE"
 sudo systemctl --no-pager --full status "$BACKEND_SERVICE" || true
-
