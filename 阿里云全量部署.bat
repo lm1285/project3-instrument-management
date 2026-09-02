@@ -7,10 +7,10 @@ call "%~dp0aliyun-deploy-core.bat" FULL
 set "RESULT=%ERRORLEVEL%"
 if "%RESULT%"=="0" (
   echo.
-  echo [OK] é˜¿é‡Œäº‘å…¨é‡éƒ¨ç½²å®Œæˆã€‚
+  echo [OK] °¢ÀïÔÆÈ«Á¿²¿ÊðÍê³É¡£
 ) else (
   echo.
-  echo [ERROR] é˜¿é‡Œäº‘å…¨é‡éƒ¨ç½²å¤±è´¥ï¼Œé”™è¯¯ç ï¼š%RESULT%
+  echo [ERROR] °¢ÀïÔÆÈ«Á¿²¿ÊðÊ§°Ü£¬´íÎóÂë£º%RESULT%
 )
 pause
 exit /b %RESULT%

@@ -4,10 +4,10 @@ call "%~dp0aliyun-deploy-core.bat" CODE
 set "RESULT=%ERRORLEVEL%"
 if "%RESULT%"=="0" (
   echo.
-  echo [OK] 阿里云代码部署完成。
+  echo [OK] �����ƴ��벿����ɡ�
 ) else (
   echo.
-  echo [ERROR] 阿里云代码部署失败，错误码：%RESULT%
+  echo [ERROR] �����ƴ��벿��ʧ�ܣ������룺%RESULT%
 )
 pause
 exit /b %RESULT%

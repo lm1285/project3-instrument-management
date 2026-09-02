@@ -1,14 +1,14 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-REM Usage: é˜¿é‡Œäº‘éƒ¨ç½².bat CODE ^| FULL
+REM Usage: °¢ÀïÔÆ²¿Êğ.bat CODE ^| FULL
 REM CODE keeps the current production backend/data directory.
 REM FULL replaces production backend/data with the local backend/data directory.
 
 set "DEPLOY_MODE=%~1"
 if /I not "%DEPLOY_MODE%"=="CODE" if /I not "%DEPLOY_MODE%"=="FULL" (
     echo [ERROR] Deployment mode must be CODE or FULL.
-    echo Use é˜¿é‡Œäº‘ä»£ç éƒ¨ç½².bat or é˜¿é‡Œäº‘å…¨é‡éƒ¨ç½².bat instead.
+    echo Use °¢ÀïÔÆ´úÂë²¿Êğ.bat or °¢ÀïÔÆÈ«Á¿²¿Êğ.bat instead.
     pause
     exit /b 1
 )
@@ -17,13 +17,13 @@ REM ==================== SERVER CONFIG ====================
 set "SERVER_IP=121.40.33.80"
 set "SERVER_USER=root"
 set "SERVER_PORT=22"
-REM Per-computer settings can be placed in é˜¿é‡Œäº‘éƒ¨ç½²é…ç½®.bat (ignored by Git).
+REM Per-computer settings can be placed in °¢ÀïÔÆ²¿ÊğÅäÖÃ.bat (ignored by Git).
 REM The file may define SSH_KEY_PATH, SERVER_IP, SERVER_USER, or SERVER_PORT.
-if exist "%~dp0é˜¿é‡Œäº‘éƒ¨ç½²é…ç½®.bat" call "%~dp0é˜¿é‡Œäº‘éƒ¨ç½²é…ç½®.bat"
+if exist "%~dp0°¢ÀïÔÆ²¿ÊğÅäÖÃ.bat" call "%~dp0°¢ÀïÔÆ²¿ÊğÅäÖÃ.bat"
 REM SSH_KEY_PATH can also be supplied by the caller. Otherwise use the current user profile.
 if not defined SSH_KEY_PATH set "SSH_KEY_PATH=%USERPROFILE%\.ssh\instrument_management_aliyun"
 REM Fallback for the key downloaded on this computer.
-if not exist "%SSH_KEY_PATH%" if exist "D:\Edgeä¸‹è½½\SSH (1).pem" set "SSH_KEY_PATH=D:\Edgeä¸‹è½½\SSH (1).pem"
+if not exist "%SSH_KEY_PATH%" if exist "D:\EdgeÏÂÔØ\SSH (1).pem" set "SSH_KEY_PATH=D:\EdgeÏÂÔØ\SSH (1).pem"
 set "DEPLOY_DIR=/opt/instrument-management"
 set "PROJECT_NAME=project3-instrument-management"
 set "NGINX_WEB_ROOT=/var/www/wzglpt"
@@ -40,7 +40,7 @@ set "TAR_CMD="
 
 if not exist "!SSH_KEY_PATH!" (
     echo [ERROR] SSH key file not found: !SSH_KEY_PATH!
-    echo         Create é˜¿é‡Œäº‘éƒ¨ç½²é…ç½®.bat beside this script with:
+    echo         Create °¢ÀïÔÆ²¿ÊğÅäÖÃ.bat beside this script with:
     echo         set "SSH_KEY_PATH=C:\path\to\your\aliyun_private_key"
     echo         Or put the key at: %USERPROFILE%\.ssh\instrument_management_aliyun
     pause
