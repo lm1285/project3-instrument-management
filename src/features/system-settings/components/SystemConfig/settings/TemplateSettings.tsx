@@ -134,7 +134,7 @@ const TemplateSettings: React.FC = () => {
         title={editingTemplate ? '编辑模板' : '新建模板'}
         open={isModalVisible}
         onOk={handleOk}
-        okText="确定"
+        okText="保存"
         cancelText="取消"
         onCancel={() => setIsModalVisible(false)}
         width={700}

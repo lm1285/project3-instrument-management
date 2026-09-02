@@ -76,7 +76,7 @@ export function useTemplateSettingsManager() {
         try {
           const base64 = await readFileAsBase64(file);
           setTempFile({ name: file.name, data: base64 });
-          message.success(`${file.name} 已准备好上传`);
+          message.success(`${file.name} Excel 文件上传成功`);
         } catch (error) {
           message.error('文件读取失败');
         }
@@ -129,7 +129,7 @@ export function useTemplateSettingsManager() {
 
       setSettings({ ...settings, templates: nextTemplates });
       setIsModalVisible(false);
-      message.success(editingTemplate ? '模板更新成功' : '模板添加成功');
+      message.success('模板保存完成');
     } catch (error) {
       console.error('Template validation failed', error);
     }

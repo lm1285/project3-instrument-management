@@ -17,6 +17,8 @@ const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 const safeName = (value: string) => String(value || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || '未命名';
 const isLegacyBusinessType = (value: unknown) => ['现场', '送检'].includes(String(value || '').trim());
+const templateGroup = (input: any, fallback: string) => String(input.templateGroupName || input.template_group_name || fallback).trim();
+const templateItem = (input: any, fallback = '') => String(input.templateItemName || input.template_item_name || input.templateName || input.name || input.template_name || fallback).trim();
 const splitMatchKeywords = (value: unknown) => [...new Set(
   String(value || '').split(/[,，]/).map((item) => item.trim()).filter(Boolean),
 )];
@@ -278,7 +280,10 @@ class OneClickTransferService {
 
   async saveUploadTemplateWithFile(input: any, file?: Express.Multer.File) {
     const timestamp = now();
-    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_upload_templates WHERE id=? OR template_name=? OR type_name=?', [input.id || '', input.templateName, input.templateName]);
+    const groupName = '收发委托模板组';
+    const itemName = templateItem(input);
+    if (!itemName) throw new Error('模板项名称不能为空');
+    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_upload_templates WHERE id=? OR template_item_name=? OR template_name=? OR type_name=?', [input.id || '', itemName, itemName, itemName]);
     const templateId = input.id || existing?.id || id('upload');
     let filePath = existing?.file_path;
     let fileName = existing?.file_name;
@@ -291,14 +296,18 @@ class OneClickTransferService {
     }
     if (!filePath) throw new Error('璇蜂笂浼犲緟涓婁紶妯℃澘Excel鏂囦欢');
     const header = readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2)).header;
-    if (!input.matchColumn || !header.includes(input.matchColumn)) throw new Error('匹配规则列不存在');
-    await this.db.run(`INSERT INTO transfer_upload_templates(id,type_name,template_name,file_path,file_name,match_column,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET template_name=excluded.template_name,file_path=excluded.file_path,file_name=excluded.file_name,match_column=excluded.match_column,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, input.templateName, input.templateName, filePath, fileName, input.matchColumn, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
+    const matchColumnEnabled = String(input.matchColumnEnabled ?? 'true') !== 'false' ? 1 : 0;
+    if (matchColumnEnabled && (!input.matchColumn || !header.includes(input.matchColumn))) throw new Error('匹配规则列不存在');
+    await this.db.run(`INSERT INTO transfer_upload_templates(id,type_name,template_name,template_group_name,template_item_name,file_path,file_name,match_column,match_column_enabled,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET type_name=excluded.type_name,template_name=excluded.template_name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,file_path=excluded.file_path,file_name=excluded.file_name,match_column=excluded.match_column,match_column_enabled=excluded.match_column_enabled,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, `${groupName}/${itemName}`, itemName, groupName, itemName, filePath, fileName, matchColumnEnabled ? input.matchColumn : null, matchColumnEnabled, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
     return { id: templateId, fileName };
   }
 
   async saveImportTemplateWithFile(input: any, file?: Express.Multer.File) {
     const timestamp = now();
-    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_import_templates WHERE id=? OR name=?', [input.id || '', input.name]);
+    const groupName = '导入格式模板组';
+    const itemName = templateItem(input);
+    if (!itemName) throw new Error('模板项名称不能为空');
+    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_import_templates WHERE id=? OR template_item_name=? OR name=?', [input.id || '', itemName, itemName]);
     const templateId = input.id || existing?.id || id('import');
     let filePath = existing?.file_path;
     let fileName = existing?.file_name;
@@ -312,14 +321,18 @@ class OneClickTransferService {
     if (!filePath) throw new Error('请上传导入格式 Excel 文件');
     readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2));
     const header = readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2)).header;
-    if (input.matchColumn && !header.includes(input.matchColumn)) throw new Error('导入格式的匹配列不存在');
-    await this.db.run(`INSERT INTO transfer_import_templates(id,name,file_path,file_name,match_column,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,file_path=excluded.file_path,file_name=excluded.file_name,match_column=excluded.match_column,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, input.name, filePath, fileName, input.matchColumn || null, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
+    const matchColumnEnabled = String(input.matchColumnEnabled ?? 'true') !== 'false' ? 1 : 0;
+    if (matchColumnEnabled && (!input.matchColumn || !header.includes(input.matchColumn))) throw new Error('导入格式的匹配列不存在');
+    await this.db.run(`INSERT INTO transfer_import_templates(id,name,template_group_name,template_item_name,file_path,file_name,match_column,match_column_enabled,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,file_path=excluded.file_path,file_name=excluded.file_name,match_column=excluded.match_column,match_column_enabled=excluded.match_column_enabled,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, itemName, groupName, itemName, filePath, fileName, matchColumnEnabled ? input.matchColumn : null, matchColumnEnabled, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
     return { id: templateId, fileName };
   }
 
   async saveQuoteTemplateWithFile(input: any, file?: Express.Multer.File) {
     const timestamp = now();
-    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_quote_templates WHERE id=? OR name=?', [input.id || '', input.name]);
+    const groupName = '报价单模板组';
+    const itemName = templateItem(input);
+    if (!itemName) throw new Error('模板项名称不能为空');
+    const existing = await this.db.get<any>('SELECT id,file_path,file_name FROM transfer_quote_templates WHERE id=? OR template_item_name=? OR name=?', [input.id || '', itemName, itemName]);
     const templateId = input.id || existing?.id || id('quote');
     let filePath = existing?.file_path;
     let fileName = existing?.file_name;
@@ -332,26 +345,26 @@ class OneClickTransferService {
     }
     if (!filePath) throw new Error('请上传报价单模板文件');
     readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2));
-    await this.db.run(`INSERT INTO transfer_quote_templates(id,name,file_path,file_name,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,file_path=excluded.file_path,file_name=excluded.file_name,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, input.name, filePath, fileName, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
+    await this.db.run(`INSERT INTO transfer_quote_templates(id,name,template_group_name,template_item_name,file_path,file_name,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,file_path=excluded.file_path,file_name=excluded.file_name,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, itemName, groupName, itemName, filePath, fileName, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
     return { id: templateId, fileName };
   }
 
   async getConfig() {
     const [uploadTemplates, importTemplates, quoteTemplates, targetTemplates, settings] = await Promise.all([
-      this.db.all('SELECT * FROM transfer_upload_templates ORDER BY type_name'),
-      this.db.all('SELECT * FROM transfer_import_templates ORDER BY name'),
-      this.db.all('SELECT * FROM transfer_quote_templates ORDER BY name'),
-      this.db.all('SELECT * FROM transfer_target_templates ORDER BY name'),
+      this.db.all('SELECT * FROM transfer_upload_templates ORDER BY template_group_name, template_item_name'),
+      this.db.all('SELECT * FROM transfer_import_templates ORDER BY template_group_name, template_item_name'),
+      this.db.all('SELECT * FROM transfer_quote_templates ORDER BY template_group_name, template_item_name'),
+      this.db.all('SELECT * FROM transfer_target_templates ORDER BY template_group_name, template_item_name'),
       this.db.all('SELECT * FROM transfer_settings ORDER BY key'),
     ]);
     const headersFor = (item: any) => {
       if (!item.file_path || !fs.existsSync(item.file_path)) return [];
       return readHeader(item.file_path, item.header_row, item.data_start_row);
     };
-    const uploads = (uploadTemplates as any[]).filter((item) => !isLegacyBusinessType(item.template_name || item.type_name)).map((item) => ({ ...item, template_name: item.template_name || item.type_name, headers: headersFor(item) }));
-    const imports = (importTemplates as any[]).map((item) => ({ ...item, headers: headersFor(item) }));
-    const quotes = (quoteTemplates as any[]).map((item) => ({ ...item, headers: headersFor(item) }));
-    const targets = (targetTemplates as any[]).filter((item) => !isLegacyBusinessType(item.name) && !isLegacyBusinessType(item.match_keyword)).map((item) => ({ ...item, file_name: item.file_path ? path.basename(item.file_path) : '', headers: headersFor(item), mappings: [] }));
+    const uploads = (uploadTemplates as any[]).filter((item) => !isLegacyBusinessType(item.template_item_name || item.template_name || item.type_name)).map((item) => ({ ...item, template_group_name: '收发委托模板组', template_item_name: item.template_item_name || item.template_name || item.type_name, template_name: item.template_item_name || item.template_name || item.type_name, headers: headersFor(item) }));
+    const imports = (importTemplates as any[]).map((item) => ({ ...item, template_group_name: '导入格式模板组', template_item_name: item.template_item_name || item.name, name: item.template_item_name || item.name, headers: headersFor(item) }));
+    const quotes = (quoteTemplates as any[]).map((item) => ({ ...item, template_group_name: '报价单模板组', template_item_name: item.template_item_name || item.name, name: item.template_item_name || item.name, headers: headersFor(item) }));
+    const targets = (targetTemplates as any[]).filter((item) => !isLegacyBusinessType(item.template_item_name || item.name) && !isLegacyBusinessType(item.match_keyword)).map((item) => ({ ...item, template_group_name: '转送对象模板组', template_item_name: item.template_item_name || item.name, name: item.template_item_name || item.name, file_name: item.file_path ? path.basename(item.file_path) : '', headers: headersFor(item), mappings: [] }));
     const mappingRows = await this.db.all<any[]>('SELECT * FROM transfer_mappings ORDER BY target_template_id, rowid');
     const mappingsByTarget = new Map<string, any[]>();
     for (const row of mappingRows) {
@@ -440,7 +453,7 @@ class OneClickTransferService {
     });
   }
 
-  async saveUploadTemplate(input: any) { const timestamp = now(); const templateId = input.id || id('upload'); await this.db.run(`INSERT INTO transfer_upload_templates(id,type_name,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET type_name=excluded.type_name,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, input.typeName, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]); return { id: templateId }; }
+  async saveUploadTemplate(input: any) { const timestamp = now(); const groupName = '收发委托模板组'; const itemName = templateItem(input, input.typeName); if (!itemName) throw new Error('模板项名称不能为空'); const templateId = input.id || id('upload'); await this.db.run(`INSERT INTO transfer_upload_templates(id,type_name,template_name,template_group_name,template_item_name,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET type_name=excluded.type_name,template_name=excluded.template_name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, `${groupName}/${itemName}`, itemName, groupName, itemName, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]); return { id: templateId }; }
   async saveTargetTemplate(input: any, file?: Express.Multer.File) {
     const timestamp = now();
     const templateId = input.id || id('target');
@@ -459,9 +472,12 @@ class OneClickTransferService {
     }
 
     if (!filePath) throw new Error('模板文件不能为空');
+    const groupName = '转送对象模板组';
+    const itemName = templateItem(input);
+    if (!itemName) throw new Error('模板项名称不能为空');
     await this.db.run(
-      `INSERT INTO transfer_target_templates(id,name,match_keyword,file_path,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,match_keyword=excluded.match_keyword,file_path=excluded.file_path,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`,
-      [templateId, input.name, matchKeywords.join(','), filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp],
+      `INSERT INTO transfer_target_templates(id,name,template_group_name,template_item_name,match_keyword,file_path,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,match_keyword=excluded.match_keyword,file_path=excluded.file_path,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`,
+      [templateId, itemName, groupName, itemName, matchKeywords.join(','), filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp],
     );
     return { id: templateId };
   }
@@ -558,8 +574,8 @@ class OneClickTransferService {
         const generated = readRows(outputPath, importTemplate.header_row, importTemplate.data_start_row); generated.data = generated.data.slice(0, source.data.length);
         const previewRows = generated.data.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = generated.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
         const fileId = id('file');
-        await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, quote.name, importTemplate.match_column || '导入格式', 'completed', source.data.length, source.data.length, 0, folderName, now(), now()]);
-        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, null, importTemplate.name, '导入格式', filename, outputPath, source.data.length, size, JSON.stringify(previewRows), now()]);
+        await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, quote.template_item_name || quote.name, importTemplate.match_column || '导入格式', 'completed', source.data.length, source.data.length, 0, folderName, now(), now()]);
+        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, null, importTemplate.name, importTemplate.template_group_name || '导入格式模板', importTemplate.template_item_name || importTemplate.name, '导入格式', filename, outputPath, source.data.length, size, JSON.stringify(previewRows), now()]);
         return { task: { id: taskId, folderName, totalRows: source.data.length, matchedRows: source.data.length, skippedRows: 0, status: 'completed' }, files: [{ id: fileId, templateName: importTemplate.name, matchKeyword: '导入格式', filename, rowCount: source.data.length, fileSize: size, fileType: 'import' }] };
       }
     } finally {
@@ -593,11 +609,11 @@ class OneClickTransferService {
       const source = readRows(sourcePath, Number(sourceTemplate.header_row || 1), Number(sourceTemplate.data_start_row || 2));
       const matchIndex = source.header.indexOf(matchColumn);
       if (matchIndex < 0) throw new Error(`上传文件缺少转送匹配列：${matchColumn}`);
-      const taskName = `${safeName(calibrationDate).replace(/-/g, '')}_${safeName(sourceTemplate.name || sourceTemplate.template_name || '转送')}`;
+      const taskName = `${safeName(calibrationDate).replace(/-/g, '')}_${safeName(sourceTemplate.template_item_name || sourceTemplate.name || sourceTemplate.template_name || '转送')}`;
       taskId = id('task');
       folderPath = path.join(TASK_DIR, `${taskId}-${taskName}`);
       await fs.promises.mkdir(folderPath, { recursive: true });
-      await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, sourceTemplate.name || sourceTemplate.template_name, matchColumn, 'processing', source.data.length, 0, 0, taskName, now()]);
+      await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, sourceTemplate.template_item_name || sourceTemplate.name || sourceTemplate.template_name, matchColumn, 'processing', source.data.length, 0, 0, taskName, now()]);
       const targets = (await this.db.all<any[]>('SELECT * FROM transfer_target_templates')).filter((item) => !isLegacyBusinessType(item.name) && !isLegacyBusinessType(item.match_keyword));
       const groups = new Map<string, { rows: Row[]; matchedKeywords: Set<string> }>();
       let skipped = 0;
@@ -638,7 +654,7 @@ class OneClickTransferService {
         const outputPath = path.join(folderPath, filename); await writeTemplateText(target.file_path, outputPath, updates);
         const size = (await fs.promises.stat(outputPath)).size; const fileId = id('file');
         const previewRows = group.rows.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = source.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
-        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
+        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
         generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: group.rows.length, fileSize: size, fileType: 'target' });
       }
       await this.db.run(`UPDATE transfer_tasks SET status='completed', matched_rows=?, skipped_rows=?, completed_at=? WHERE id=?`, [source.data.length - skipped, skipped, now(), taskId]);
@@ -747,7 +763,7 @@ class OneClickTransferService {
     })));
     const orderSize = (await fs.promises.stat(orderPath)).size;
     const orderFileId = id('file');
-    await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [orderFileId, taskId, null, orderTemplate.template_name || orderTemplate.type_name || '收发委托单', '收发委托单', orderFilename, orderPath, source.data.length, orderSize, JSON.stringify(orderPreviewRows), now()]);
+    await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [orderFileId, taskId, null, orderTemplate.template_item_name || orderTemplate.template_name || orderTemplate.type_name || '收发委托单', orderTemplate.template_group_name || '收发委托模板', orderTemplate.template_item_name || orderTemplate.template_name || orderTemplate.type_name || '收发委托单', '收发委托单', orderFilename, orderPath, source.data.length, orderSize, JSON.stringify(orderPreviewRows), now()]);
     generated.push({ id: orderFileId, templateName: orderTemplate.template_name || orderTemplate.type_name || '收发委托单', matchKeyword: '收发委托单', filename: orderFilename, rowCount: source.data.length, fileSize: orderSize, fileType: 'order' });
 
     let skipped = 0;
@@ -793,7 +809,7 @@ class OneClickTransferService {
         await writeTemplateText(target.file_path, outputPath, updates);
         const size = (await fs.promises.stat(outputPath)).size; const fileId = id('file');
         const previewRows = group.rows.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = generatedOrderRows.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
-        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
+        await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
         generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: group.rows.length, fileSize: size, fileType: 'target' });
       }
     }
@@ -830,7 +846,8 @@ class OneClickTransferService {
     // Multer may expose non-ASCII multipart filenames as Latin-1 bytes.
     const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     if (decodedName && !decodedName.includes('\ufffd')) file.originalname = decodedName;
-    const configuredTemplate = await this.db.get<any>('SELECT * FROM transfer_upload_templates WHERE template_name = ? OR type_name = ?', [input.templateName || input.businessType, input.templateName || input.businessType]);
+    const requestedItemName = templateItem(input, input.businessType);
+    const configuredTemplate = await this.db.get<any>('SELECT * FROM transfer_upload_templates WHERE template_item_name = ? OR template_name = ? OR type_name = ?', [requestedItemName, requestedItemName, requestedItemName]);
     if (!configuredTemplate) throw new Error('未配置所选模板');
     const active = await this.db.get(`SELECT id FROM transfer_tasks WHERE user_name = ? AND status = 'processing'`, [username]); if (active) throw new Error('当前已有处理中的任务，请等待完成');
     const uploadTemplate = configuredTemplate; if (!uploadTemplate) throw new Error('未配置所选模板');
@@ -885,7 +902,7 @@ class OneClickTransferService {
     const namePrefix = `${safeName(certificateUnit)}_${safeName(calibrationDate).replace(/-/g, '')}`;
     const folderName = `${namePrefix}_${safeName(allMatchedKeywords.join('、'))}`;
     const folderPath = path.join(TASK_DIR, `${taskId}-${folderName}`); await fs.promises.mkdir(folderPath, { recursive: true });
-    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, input.templateName || input.businessType, matchColumn, 'processing', source.data.length, source.data.length - skipped, skipped, folderName, now()]);
+    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, requestedItemName, matchColumn, 'processing', source.data.length, source.data.length - skipped, skipped, folderName, now()]);
     const generated: any[] = [];
     for (const [targetId, group] of groups) {
       const { rows } = group;
@@ -953,7 +970,7 @@ class OneClickTransferService {
       await writeTemplateText(target.file_path, outputPath, updates);
       const size = (await fs.promises.stat(outputPath)).size;
       const fileId = id('file');
-      await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.match_keyword, filename, outputPath, rows.length, size, JSON.stringify(previewRows), now()]);
+      await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, rows.length, size, JSON.stringify(previewRows), now()]);
       generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: rows.length, fileSize: size });
     }
     await this.db.run(`UPDATE transfer_tasks SET status='completed',completed_at=? WHERE id=?`, [now(), taskId]); await fs.promises.rm(sourcePath, { force: true }); return { task: { id: taskId, folderName, totalRows: source.data.length, matchedRows: source.data.length - skipped, skippedRows: skipped, status: 'completed' }, files: generated };

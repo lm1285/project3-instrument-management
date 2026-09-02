@@ -581,6 +581,8 @@ class DatabaseConfig {
         id TEXT PRIMARY KEY,
         type_name TEXT NOT NULL UNIQUE,
         template_name TEXT,
+        template_group_name TEXT,
+        template_item_name TEXT,
         file_path TEXT,
         file_name TEXT,
         match_column TEXT,
@@ -592,6 +594,8 @@ class DatabaseConfig {
     await this.db.exec(this.getCreateTableSql('transfer_import_templates', `
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        template_group_name TEXT,
+        template_item_name TEXT,
         file_path TEXT NOT NULL,
         file_name TEXT NOT NULL,
         match_column TEXT,
@@ -603,6 +607,8 @@ class DatabaseConfig {
     await this.db.exec(this.getCreateTableSql('transfer_quote_templates', `
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        template_group_name TEXT,
+        template_item_name TEXT,
         file_path TEXT NOT NULL,
         file_name TEXT NOT NULL,
         header_row INTEGER NOT NULL DEFAULT 1,
@@ -614,6 +620,8 @@ class DatabaseConfig {
     await this.db.exec(this.getCreateTableSql('transfer_target_templates', `
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        template_group_name TEXT,
+        template_item_name TEXT,
         match_keyword TEXT NOT NULL UNIQUE,
         file_path TEXT NOT NULL,
         header_row INTEGER NOT NULL DEFAULT 1,
@@ -624,7 +632,24 @@ class DatabaseConfig {
     await this.addColumnIfNotExists('transfer_upload_templates', 'file_path', 'TEXT');
     await this.addColumnIfNotExists('transfer_upload_templates', 'file_name', 'TEXT');
     await this.addColumnIfNotExists('transfer_upload_templates', 'match_column', 'TEXT');
+    await this.addColumnIfNotExists('transfer_upload_templates', 'match_column_enabled', 'INTEGER NOT NULL DEFAULT 1');
     await this.addColumnIfNotExists('transfer_upload_templates', 'template_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_upload_templates', 'template_group_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_upload_templates', 'template_item_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_import_templates', 'template_group_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_import_templates', 'match_column_enabled', 'INTEGER NOT NULL DEFAULT 1');
+    await this.addColumnIfNotExists('transfer_import_templates', 'template_item_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_quote_templates', 'template_group_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_quote_templates', 'template_item_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_target_templates', 'template_group_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_target_templates', 'template_item_name', 'TEXT');
+    await this.db.run("UPDATE transfer_upload_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), type_name), template_item_name=COALESCE(NULLIF(template_item_name,''), NULLIF(template_name,''), type_name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
+    await this.db.run("UPDATE transfer_import_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), '导入格式模板组'), template_item_name=COALESCE(NULLIF(template_item_name,''), name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
+    await this.db.run("UPDATE transfer_quote_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), '报价单模板组'), template_item_name=COALESCE(NULLIF(template_item_name,''), name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
+    await this.db.run("UPDATE transfer_target_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), '转送对象模板组'), template_item_name=COALESCE(NULLIF(template_item_name,''), name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
+    await this.db.run("UPDATE transfer_import_templates SET template_group_name='导入格式模板组' WHERE template_group_name='导入格式模板'");
+    await this.db.run("UPDATE transfer_quote_templates SET template_group_name='报价单模板组' WHERE template_group_name='报价单模板'");
+    await this.db.run("UPDATE transfer_target_templates SET template_group_name='转送对象模板组' WHERE template_group_name='转送对象模板'");
     await this.db.exec(this.getCreateTableSql('transfer_mappings', `
         id TEXT PRIMARY KEY,
         target_template_id TEXT NOT NULL,
@@ -699,6 +724,8 @@ class DatabaseConfig {
         task_id TEXT NOT NULL,
         target_template_id TEXT,
         template_name TEXT NOT NULL,
+        template_group_name TEXT,
+        template_item_name TEXT,
         match_keyword TEXT NOT NULL,
         filename TEXT NOT NULL,
         file_path TEXT NOT NULL,
@@ -711,6 +738,9 @@ class DatabaseConfig {
         FOREIGN KEY(target_template_id) REFERENCES transfer_target_templates(id) ON DELETE SET NULL
     `));
     await this.addColumnIfNotExists('transfer_files', 'preview_data_json', 'TEXT');
+    await this.addColumnIfNotExists('transfer_files', 'template_group_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_files', 'template_item_name', 'TEXT');
+    await this.db.run("UPDATE transfer_files SET template_group_name=COALESCE(NULLIF(template_group_name,''), '转送对象模板'), template_item_name=COALESCE(NULLIF(template_item_name,''), template_name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
     await this.db.exec(this.getCreateTableSql('transfer_settings', `
         key TEXT PRIMARY KEY,
         value TEXT,
