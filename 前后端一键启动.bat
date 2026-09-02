@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~sdp0"
+if exist "%USERPROFILE%\Tools\node-v20.19.5-win-x64\npm.cmd" set "PATH=%USERPROFILE%\Tools\node-v20.19.5-win-x64;%PATH%"
 cls
 
 set "NPM_CMD="
