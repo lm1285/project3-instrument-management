@@ -1,0 +1,125 @@
+name: 6A Workflow
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend deps
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: TypeScript check (frontend)
+        run: npx tsc --noEmit
+
+  assemble:
+    runs-on: windows-latest
+    needs: analyze
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend deps
+        run: npm ci
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+  assert:
+    runs-on: windows-latest
+    needs: assemble
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+      - name: Start backend (8080)
+        working-directory: backend
+        run: |
+          $env:PORT=8080
+          Start-Process node -ArgumentList "dist/index.js" -NoNewWindow
+          Start-Sleep -Seconds 3
+      - name: Run backend auto-tests
+        working-directory: backend
+        run: npm test
+
+  apply:
+    runs-on: windows-latest
+    needs: assert
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend deps
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+  audit:
+    runs-on: windows-latest
+    needs: apply
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+      - name: Start backend (8080)
+        working-directory: backend
+        run: |
+          $env:PORT=8080
+          Start-Process node -ArgumentList "dist/index.js" -NoNewWindow
+          Start-Sleep -Seconds 2
+      - name: Health check
+        run: |
+          powershell -Command "(Invoke-WebRequest -Uri http://localhost:8080/health).StatusCode"
+
+  archive:
+    runs-on: windows-latest
+    needs: [apply]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Upload backend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist

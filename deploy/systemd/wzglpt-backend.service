@@ -1,0 +1,15 @@
+[Unit]
+Description=wzglpt backend (Express + SQLite)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/wzglpt/app/backend
+EnvironmentFile=/etc/wzglpt/backend.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+

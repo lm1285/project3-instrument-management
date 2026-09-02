@@ -1,0 +1,13 @@
+/* Dashboard容器样式 */
+.dashboard-container {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 0;
+  }
+}

@@ -1,0 +1,135 @@
+/* FilterPanel styles */
+.filterPanel {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  min-width: 100%;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.filterItem {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.filterLabel {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+
+.filterSelect {
+  min-width: 160px;
+  width: 160px;
+}
+
+.filterDatePicker {
+  min-width: 240px;
+  width: 240px;
+}
+
+.filterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Compact mode styles */
+.compact-filter-panel {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.compact-filter-panel .filterRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.compact-filter-panel .filterItem {
+  margin-right: 8px;
+  min-width: auto;
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  display: inline-flex;
+}
+
+.compact-filter-panel .filterSelect {
+  width: 100px;
+  min-width: 100px;
+  margin-bottom: 0;
+}
+
+.compact-filter-panel .filterDatePicker {
+  width: 180px;
+  min-width: 180px;
+  margin-bottom: 0;
+}
+
+  /* Responsive design */
+@media (max-width: 1200px) {
+  .compact-filter-panel .filterRow {
+    flex-wrap: wrap;
+  }
+  
+  .compact-filter-panel .filterItem {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filterRow {
+    flex-direction: column;
+  }
+  
+  .filterItem {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  
+  .compact-filter-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .compact-filter-panel .filterRow {
+    flex-direction: column;
+  }
+  
+  .compact-filter-panel .filterItem {
+    width: 100%;
+    margin-right: 0;
+  }
+  
+  .compact-filter-panel .filterSelect,
+  .compact-filter-panel .filterDatePicker {
+    width: 100%;
+  }
+}

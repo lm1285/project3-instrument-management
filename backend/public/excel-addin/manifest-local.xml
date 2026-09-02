@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <!-- ID: Local Dev ID (Different from Prod) -->
+  <Id>f6a7b8c9-d0e1-4234-9567-f06789012346</Id>
+  <Version>1.1.0.5</Version>
+  <ProviderName>Instrument System (Local)</ProviderName>
+  <DefaultLocale>zh-CN</DefaultLocale>
+  <DisplayName DefaultValue="Excel 智能填充助手 (Local)"/>
+  <Description DefaultValue="仪器管理智能填充助手 - 本地测试版"/>
+  <IconUrl DefaultValue="http://localhost:3003/excel-addin/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="http://localhost:3003/excel-addin/assets/icon-80.png"/>
+  <SupportUrl DefaultValue="http://localhost:3003/help"/>
+  
+  <AppDomains>
+    <AppDomain>http://localhost:3003</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="http://localhost:3003/excel-addin/taskpane.html"/>
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_1">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="TabInstrumentLocal">
+              <Group id="MsgGroupLocal">
+                <Label resid="lblGroup"/>
+                <Icon>
+                  <bt:Image size="16" resid="icon16"/>
+                  <bt:Image size="32" resid="icon32"/>
+                  <bt:Image size="80" resid="icon80"/>
+                </Icon>
+                <Control xsi:type="Button" id="TaskpaneButtonLocal">
+                  <Label resid="lblButton"/>
+                  <Supertip>
+                    <Title resid="lblButton"/>
+                    <Description resid="lblDesc"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="icon16"/>
+                    <bt:Image size="32" resid="icon32"/>
+                    <bt:Image size="80" resid="icon80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ButtonId1</TaskpaneId>
+                    <SourceLocation resid="urlTaskpane"/>
+                    <SupportsPinning>true</SupportsPinning>
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="lblTab"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="icon16" DefaultValue="http://localhost:3003/excel-addin/assets/icon-16.png"/>
+        <bt:Image id="icon32" DefaultValue="http://localhost:3003/excel-addin/assets/icon-32.png"/>
+        <bt:Image id="icon80" DefaultValue="http://localhost:3003/excel-addin/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="urlTaskpane" DefaultValue="http://localhost:3003/excel-addin/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="lblButton" DefaultValue="打开助手(Local)"/>
+        <bt:String id="lblGroup" DefaultValue="仪器管理(Local)"/>
+        <bt:String id="lblTab" DefaultValue="仪器管理(Local)"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="lblDesc" DefaultValue="打开本地测试版助手"/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

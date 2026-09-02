@@ -1,0 +1,44 @@
+server {
+    listen 80;
+    server_name wzglpt.top;
+    
+    # 强制跳转 HTTPS (可选)
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name wzglpt.top;
+
+    # SSL 证书配置 (请替换为你实际的证书路径)
+    # ssl_certificate /path/to/your/cert.pem;
+    # ssl_certificate_key /path/to/your/key.pem;
+
+    # 1. 代理 API 请求到后端 3002 端口
+    location /api/ {
+        proxy_pass http://localhost:3002/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 2. 代理 Excel 插件静态文件到后端 3002 端口
+    location /excel-addin/ {
+        proxy_pass http://localhost:3002/excel-addin/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 3. 其他请求 (如果前端部署在其他地方，可单独配置)
+    location / {
+        # 示例：如果前端也是通过 3002 服务 (虽然通常前端是独立的 Nginx 静态服务)
+        # proxy_pass http://localhost:3002/;
+        
+        # 或者指向前端静态文件目录
+        root /www/wwwroot/wzglpt.top;
+        index index.html;
+    }
+}

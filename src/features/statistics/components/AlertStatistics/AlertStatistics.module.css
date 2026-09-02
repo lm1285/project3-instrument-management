@@ -1,0 +1,30 @@
+.container {
+  padding: 20px;
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-sm);
+  margin: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.headerContainer {
+  margin-bottom: 24px;
+}
+
+.headerContainer h2 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--primary-color);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  display: inline-block;
+}
+
+.content {
+  padding: 20px;
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-sm);
+}

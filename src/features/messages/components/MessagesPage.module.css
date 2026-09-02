@@ -1,0 +1,373 @@
+.modal :global(.ant-modal-content) {
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.modalShell {
+  background:
+    radial-gradient(circle at top right, rgba(22, 119, 255, 0.08), transparent 32%),
+    linear-gradient(180deg, #f8fbff 0%, #ffffff 30%);
+}
+
+.modalHeader {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.headerMain {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.headerEyebrow {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1677ff;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  color: #1f2937;
+}
+
+.headerSubtitle {
+  margin: 8px 0 0;
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.headerStats {
+  display: flex;
+  gap: 12px;
+}
+
+.statCard {
+  min-width: 88px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 119, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  text-align: left;
+}
+
+.statLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.statValue {
+  font-size: 24px;
+  line-height: 1;
+  color: #111827;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.filterButton {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #4b5563;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filterButton:hover {
+  color: #111827;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.filterButtonActive {
+  color: #1677ff;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.actionGroup {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modalBody {
+  padding: 20px 24px 24px;
+}
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.messageCard {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.messageCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(22, 119, 255, 0.24);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+}
+
+.messageCardUnread {
+  border-color: rgba(22, 119, 255, 0.18);
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.messageMain {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+
+.messageIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #f3f7ff;
+  flex-shrink: 0;
+}
+
+.iconWarning,
+.iconInfo,
+.iconError,
+.iconSuccess {
+  font-size: 18px;
+}
+
+.iconWarning {
+  color: #f59e0b;
+}
+
+.iconInfo {
+  color: #1677ff;
+}
+
+.iconError {
+  color: #ef4444;
+}
+
+.iconSuccess {
+  color: #22c55e;
+}
+
+.messageContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.messageMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.messageTitleRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.messageTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.messageTime {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.messageText {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #4b5563;
+}
+
+.messageActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #1677ff;
+  box-shadow: 0 0 0 6px rgba(22, 119, 255, 0.1);
+}
+
+.emptyState {
+  padding: 48px 12px 40px;
+  border: 1px dashed #dbeafe;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+@media (max-width: 768px) {
+  .headerMain {
+    flex-direction: column;
+  }
+
+  .headerStats {
+    width: 100%;
+  }
+
+  .statCard {
+    flex: 1;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .actionGroup {
+    width: 100%;
+  }
+
+  .actionGroup :global(.ant-btn) {
+    flex: 1;
+  }
+
+  .messageCard {
+    padding: 14px;
+  }
+
+  .messageMeta {
+    flex-direction: column;
+  }
+
+  .messageTime {
+    white-space: normal;
+  }
+}
+
+:global(body[data-theme='dark']) .modal :global(.ant-modal-content) {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+:global(body[data-theme='dark']) .modalShell {
+  background:
+    radial-gradient(circle at top right, rgba(22, 119, 255, 0.12), transparent 34%),
+    linear-gradient(180deg, #14181f 0%, #111318 30%);
+}
+
+:global(body[data-theme='dark']) .modalHeader {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(body[data-theme='dark']) .headerTitle,
+:global(body[data-theme='dark']) .statValue,
+:global(body[data-theme='dark']) .messageTitle {
+  color: #f8fafc;
+}
+
+:global(body[data-theme='dark']) .headerSubtitle,
+:global(body[data-theme='dark']) .statLabel,
+:global(body[data-theme='dark']) .messageText {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+:global(body[data-theme='dark']) .statCard {
+  background: rgba(17, 24, 39, 0.84);
+  border-color: rgba(96, 165, 250, 0.18);
+}
+
+:global(body[data-theme='dark']) .filterGroup {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:global(body[data-theme='dark']) .filterButton {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+:global(body[data-theme='dark']) .filterButton:hover,
+:global(body[data-theme='dark']) .filterButtonActive {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:global(body[data-theme='dark']) .messageCard {
+  border-color: #2a3342;
+  background: #171b23;
+}
+
+:global(body[data-theme='dark']) .messageCardUnread {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.16) 0%, #171b23 100%);
+}
+
+:global(body[data-theme='dark']) .messageCard:hover {
+  border-color: rgba(96, 165, 250, 0.34);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.26);
+}
+
+:global(body[data-theme='dark']) .messageIconWrap {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+:global(body[data-theme='dark']) .messageTime {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+:global(body[data-theme='dark']) .emptyState {
+  border-color: rgba(96, 165, 250, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}

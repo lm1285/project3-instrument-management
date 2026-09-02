@@ -1,0 +1,120 @@
+.searchPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.collapseTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--surface-text);
+  padding: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.collapseIcon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--surface-text-muted);
+  font-size: 12px;
+}
+
+.summary {
+  color: var(--surface-text-muted);
+  font-size: 13px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  min-width: 0;
+}
+
+.fieldWide {
+  grid-column: span 3;
+}
+
+.searchInput :global(.ant-input),
+.searchInput :global(.ant-input-affix-wrapper),
+.select :global(.ant-select-selector) {
+  background: var(--surface-bg-soft) !important;
+  border-color: var(--surface-border) !important;
+}
+
+.suffix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scanIcon {
+  color: #1677ff;
+  cursor: pointer;
+}
+
+.advanced {
+  padding-top: 2px;
+  border-top: 1px solid var(--surface-border-soft);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.actions :global(.ant-btn) {
+  height: 38px;
+  border-radius: 10px;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldWide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldWide {
+    grid-column: span 1;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions :global(.ant-btn) {
+    flex: 1 1 calc(50% - 5px);
+  }
+}

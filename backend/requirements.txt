@@ -1,0 +1,2 @@
+# Local tests for bingxijing.py do not require third-party packages.
+# The optional `xbot` module is provided by the target automation runtime.

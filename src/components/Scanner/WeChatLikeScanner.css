@@ -1,0 +1,203 @@
+.scanner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000;
+  z-index: 9999; /* Increased z-index */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Force video to cover the entire container */
+.scanner-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+.scanner-camera-wrapper {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* 
+  Kill all internal padding/margins and force full height 
+  Target ANY div inside the wrapper to handle the aspect-ratio hack div
+*/
+.scanner-camera-wrapper * {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  background-color: transparent !important; /* Ensure no black background covers video */
+}
+
+/* Specific targeting for the video element */
+.scanner-camera-wrapper video {
+  display: block !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important; /* Remove translate centering which may fail on Quark */
+  z-index: 1 !important;
+  background-color: #000; /* Fallback color */
+}
+
+.scanner-mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none; /* Allow clicks to pass through to underlying elements if needed, though scanner-overlay catches most */
+}
+
+.mask-top, .mask-bottom {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.mask-middle {
+  height: 280px; /* Size of the scanner box */
+  display: flex;
+  flex-direction: row;
+}
+
+.mask-left, .mask-right {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.scan-area {
+  width: 280px;
+  height: 280px;
+  position: relative;
+  /* border: 1px solid rgba(255, 255, 255, 0.3); */ /* Removed border to make it cleaner */
+  background: transparent; /* Explicitly transparent */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset; /* Subtle inner border */
+}
+
+.corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: #09bb07; /* WeChat green */
+  border-style: solid;
+  border-width: 0;
+}
+
+.corner-tl { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; }
+.corner-tr { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; }
+.corner-bl { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; }
+.corner-br { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; }
+
+.scan-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: #09bb07;
+  box-shadow: 0 0 4px #09bb07;
+  top: 0;
+  animation: scan 2.5s infinite linear;
+}
+
+@keyframes scan {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.scanner-controls {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 40px;
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  cursor: pointer;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.control-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.control-text {
+  font-size: 12px;
+}
+
+.scanner-tip {
+  position: absolute;
+  top: 20%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: white;
+  z-index: 20;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.close-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 30;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  background: rgba(0,0,0,0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

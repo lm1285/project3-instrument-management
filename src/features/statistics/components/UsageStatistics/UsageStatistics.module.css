@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.content {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 4px !important;
+  background: var(--surface-bg) !important;
+  box-shadow: var(--surface-shadow) !important;
+}
+
+.filterCard {
+  background: var(--surface-bg-soft) !important;
+  border: 1px solid var(--surface-border-soft) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
