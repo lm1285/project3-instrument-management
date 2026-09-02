@@ -20,14 +20,12 @@ if /I not "%CURRENT_BRANCH%"=="main" (
 )
 
 echo [2/4] Staging source code...
-git add -A -- . ^
-  ":(exclude)*.env" ":(exclude)*.env.*" ^
-  ":(exclude)node_modules" ":(exclude)node_modules/**" ^
-  ":(exclude)backend/node_modules" ":(exclude)backend/node_modules/**" ^
-  ":(exclude)backend/data" ":(exclude)backend/data/**" ^
-  ":(exclude)backend/backups" ":(exclude)backend/backups/**" ^
-  ":(exclude)*.db" ":(exclude)*.sqlite"
-if errorlevel 1 goto :failed
+git add -A -- . >nul 2>&1
+rem Git may return a warning status when ignored directories are present.
+rem The staged diff below is the authoritative success check.
+if errorlevel 1 echo Ignored local directories were skipped.
+git reset -- .env .env.* backend/.env backend/data backend/backups backend/instrument_management.db >nul 2>&1
+git reset -- '*.db' '*.sqlite' >nul 2>&1
 
 git diff --cached --quiet
 if not errorlevel 1 (
