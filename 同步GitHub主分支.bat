@@ -5,6 +5,7 @@ cd /d "%~dp0"
 echo Checking local changes...
 for /f "delims=" %%A in ('git status --porcelain') do (
   echo Local changes detected. Commit or stash them before syncing main.
+  pause
   exit /b 1
 )
 

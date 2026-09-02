@@ -8,6 +8,8 @@ REM FULL replaces production backend/data with the local backend/data directory.
 set "DEPLOY_MODE=%~1"
 if /I not "%DEPLOY_MODE%"=="CODE" if /I not "%DEPLOY_MODE%"=="FULL" (
     echo [ERROR] Deployment mode must be CODE or FULL.
+    echo Use 阿里云代码部署.bat or 阿里云全量部署.bat instead.
+    pause
     exit /b 1
 )
 
