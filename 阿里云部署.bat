@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-REM Usage: _deploy_aliyun.bat CODE ^| FULL
+REM Usage: 阿里云部署.bat CODE ^| FULL
 REM CODE keeps the current production backend/data directory.
 REM FULL replaces production backend/data with the local backend/data directory.
 
@@ -15,9 +15,9 @@ REM ==================== SERVER CONFIG ====================
 set "SERVER_IP=121.40.33.80"
 set "SERVER_USER=root"
 set "SERVER_PORT=22"
-REM Per-computer settings can be placed in _deploy_aliyun.local.bat (ignored by Git).
+REM Per-computer settings can be placed in 阿里云部署配置.bat (ignored by Git).
 REM The file may define SSH_KEY_PATH, SERVER_IP, SERVER_USER, or SERVER_PORT.
-if exist "%~dp0_deploy_aliyun.local.bat" call "%~dp0_deploy_aliyun.local.bat"
+if exist "%~dp0阿里云部署配置.bat" call "%~dp0阿里云部署配置.bat"
 REM SSH_KEY_PATH can also be supplied by the caller. Otherwise use the current user profile.
 if not defined SSH_KEY_PATH set "SSH_KEY_PATH=%USERPROFILE%\.ssh\instrument_management_aliyun"
 REM Fallback for the key downloaded on this computer.
@@ -38,7 +38,7 @@ set "TAR_CMD="
 
 if not exist "!SSH_KEY_PATH!" (
     echo [ERROR] SSH key file not found: !SSH_KEY_PATH!
-    echo         Create _deploy_aliyun.local.bat beside this script with:
+    echo         Create 阿里云部署配置.bat beside this script with:
     echo         set "SSH_KEY_PATH=C:\path\to\your\aliyun_private_key"
     echo         Or put the key at: %USERPROFILE%\.ssh\instrument_management_aliyun
     pause

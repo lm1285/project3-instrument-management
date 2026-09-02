@@ -74,6 +74,9 @@ ehthumbs.db
 # Environment variables
 .env
 
+# Per-computer deployment credentials
+阿里云部署配置.bat
+
 # IDE specific
 .idea/
 .vscode/
