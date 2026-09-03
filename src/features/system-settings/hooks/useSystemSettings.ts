@@ -126,8 +126,13 @@ function apply(settings: SystemSettings) {
 }
 
 // Debounced auto-save function
+let settingsSaveQueue: Promise<unknown> = Promise.resolve();
 const debouncedSave = debounce((settings: SystemSettings) => {
-  saveSettings(settings).catch(err => console.error('Auto-save settings failed:', err));
+  // Serialize writes: a slow SQLite write must not overlap the next debounced save.
+  settingsSaveQueue = settingsSaveQueue
+    .catch(() => undefined)
+    .then(() => saveSettings(settings))
+    .catch(err => console.error('Auto-save settings failed:', err));
 }, 2000);
 
 store.subscribe(apply);

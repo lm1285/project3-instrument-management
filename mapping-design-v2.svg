@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#15365d" flood-opacity="0.08"/>
+    </filter>
+    <filter id="smallShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="7" flood-color="#15365d" flood-opacity="0.09"/>
+    </filter>
+    <style>
+      .sans{font-family:'Microsoft YaHei','PingFang SC','Noto Sans SC',Arial,sans-serif}
+      .serif{font-family:'Times New Roman','SimSun',serif}
+      .ink{fill:#172b4d}.muted{fill:#6b7e99}.blue{fill:#1677ff}.green{fill:#14966e}.orange{fill:#c77a17}
+      .label{font-size:13px;font-weight:600;letter-spacing:.2px}.body{font-size:14px}.small{font-size:12px}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="#f4f7fb"/>
+  <rect x="0" y="0" width="88" height="1000" fill="#123f78"/>
+  <rect x="18" y="18" width="52" height="52" rx="13" fill="#2f80ed"/>
+  <text x="44" y="52" text-anchor="middle" class="sans" font-size="28" font-weight="700" fill="#fff">仪</text>
+  <g class="sans" fill="#d9e8ff" text-anchor="middle">
+    <text x="44" y="122" font-size="22">⌂</text>
+    <text x="44" y="181" font-size="22">☷</text>
+    <rect x="14" y="215" width="60" height="60" rx="12" fill="#2f80ed"/>
+    <text x="44" y="253" font-size="24" fill="#fff">⇄</text>
+    <text x="44" y="324" font-size="22">▣</text>
+    <text x="44" y="395" font-size="22">◫</text>
+  </g>
+  <text x="44" y="952" text-anchor="middle" class="sans" font-size="11" fill="#b9d2f3">v0.106</text>
+
+  <main>
+    <text x="122" y="44" class="sans muted" font-size="13">首页　›　仪器管理系统　›　<tspan class="ink" font-weight="700">一键转送</tspan></text>
+    <text x="122" y="95" class="serif ink" font-size="30" font-weight="700">映射关系</text>
+    <text x="122" y="125" class="sans muted" font-size="14">配置模板字段之间的对应关系，保存后用于一键转送</text>
+    <g class="sans" font-size="14" font-weight="600">
+      <text x="1330" y="95" class="muted">最近保存：今天 14:28</text>
+      <rect x="1412" y="112" width="136" height="42" rx="9" fill="#fff" stroke="#cbd8e8"/>
+      <text x="1480" y="138" text-anchor="middle" class="ink">↻　自动匹配</text>
+    </g>
+
+    <rect x="114" y="160" width="1468" height="194" rx="14" fill="#fff" stroke="#d7e2ef" filter="url(#shadow)"/>
+    <text x="140" y="193" class="sans ink" font-size="17" font-weight="700">目标类型</text>
+    <text x="140" y="219" class="sans muted small">先确定映射方向，再选择模板组和模板项</text>
+    <g class="sans">
+      <rect x="140" y="244" width="390" height="76" rx="10" fill="#f2f7ff" stroke="#6aa9ff" stroke-width="1.5"/>
+      <circle cx="166" cy="282" r="10" fill="#1677ff"/><circle cx="166" cy="282" r="4" fill="#fff"/>
+      <text x="190" y="276" class="ink" font-size="15" font-weight="700">模板组 → 模板项</text>
+      <text x="190" y="299" class="muted small">源模板映射到目标模板</text>
+      <rect x="550" y="244" width="390" height="76" rx="10" fill="#fff" stroke="#d7e2ef"/>
+      <circle cx="576" cy="282" r="10" fill="#fff" stroke="#b4c2d3" stroke-width="1.5"/>
+      <text x="600" y="276" class="ink" font-size="15" font-weight="600">模板项 → 模板项</text>
+      <text x="600" y="299" class="muted small">仅在同组模板内建立对应</text>
+    </g>
+    <g class="sans">
+      <text x="1006" y="208" class="muted small">当前映射方向</text>
+      <rect x="1006" y="222" width="526" height="56" rx="10" fill="#f8fafc" stroke="#e0e8f2"/>
+      <text x="1030" y="257" class="ink" font-size="14">收发委托单</text>
+      <text x="1162" y="257" class="blue" font-size="20">→</text>
+      <text x="1197" y="257" class="ink" font-size="14">转送对象</text>
+      <text x="1320" y="257" class="muted small">字段级映射</text>
+      <rect x="1006" y="292" width="526" height="28" rx="7" fill="#edf5ff"/>
+      <text x="1022" y="311" class="sans blue small">提示：模板组和模板项必须先选定，映射表才会加载</text>
+    </g>
+
+    <rect x="114" y="374" width="1468" height="578" rx="14" fill="#fff" stroke="#d7e2ef" filter="url(#shadow)"/>
+    <rect x="114" y="374" width="1468" height="72" rx="14" fill="#f8fbff"/>
+    <line x1="114" y1="446" x2="1582" y2="446" stroke="#e3ebf5"/>
+    <text x="140" y="410" class="serif ink" font-size="20" font-weight="700">映射表</text>
+    <text x="140" y="430" class="sans muted small">拖动排序 · 点击单元格快速替换</text>
+    <g class="sans">
+      <rect x="1248" y="394" width="108" height="36" rx="8" fill="#fff" stroke="#cbd8e8"/>
+      <text x="1302" y="417" text-anchor="middle" class="ink body">＋ 新增映射</text>
+      <rect x="1368" y="394" width="112" height="36" rx="8" fill="#1677ff" filter="url(#smallShadow)"/>
+      <text x="1424" y="417" text-anchor="middle" class="sans" font-size="14" fill="#fff" font-weight="700">✓　保存映射</text>
+    </g>
+
+    <rect x="140" y="466" width="960" height="102" rx="11" fill="#f7faff" stroke="#dae6f4"/>
+    <text x="164" y="492" class="sans label ink">源模板</text>
+    <rect x="164" y="506" width="260" height="45" rx="8" fill="#fff" stroke="#bfcfe2"/>
+    <text x="181" y="534" class="sans body ink">收发委托单模板组</text><text x="399" y="534" class="sans muted">⌄</text>
+    <rect x="434" y="506" width="260" height="45" rx="8" fill="#fff" stroke="#bfcfe2"/>
+    <text x="451" y="534" class="sans body ink">华东区域 · 委托单</text><text x="669" y="534" class="sans muted">⌄</text>
+    <text x="726" y="492" class="sans label ink">目标模板</text>
+    <rect x="726" y="506" width="260" height="45" rx="8" fill="#fff" stroke="#bfcfe2"/>
+    <text x="743" y="534" class="sans body ink">转送对象模板组</text><text x="961" y="534" class="sans muted">⌄</text>
+    <rect x="996" y="506" width="260" height="45" rx="8" fill="#fff" stroke="#bfcfe2"/>
+    <text x="1013" y="534" class="sans body ink">中洲转送 · 主表</text><text x="1231" y="534" class="sans muted">⌄</text>
+
+    <text x="140" y="603" class="sans ink" font-size="16" font-weight="700">字段映射</text>
+    <text x="242" y="603" class="sans muted small">已匹配 <tspan class="green" font-weight="700">8 项</tspan>　待配置 <tspan class="orange" font-weight="700">2 项</tspan></text>
+    <rect x="853" y="591" width="247" height="8" rx="4" fill="#e5edf7"/><rect x="853" y="591" width="198" height="8" rx="4" fill="#2f80ed"/>
+
+    <g class="sans">
+      <rect x="140" y="620" width="960" height="38" rx="7" fill="#eef4fb"/>
+      <text x="164" y="645" class="muted small">序号</text><text x="228" y="645" class="muted small">源模板项</text><text x="604" y="645" class="muted small">对应关系</text><text x="694" y="645" class="muted small">目标模板项</text><text x="1019" y="645" class="muted small">状态</text>
+      <g>
+        <rect x="140" y="666" width="960" height="52" rx="8" fill="#fff" stroke="#e0e8f2"/>
+        <text x="164" y="699" class="muted small">01</text><rect x="220" y="676" width="322" height="32" rx="7" fill="#fff" stroke="#c8d7e8"/><text x="235" y="697" class="ink body">设备编号</text><text x="512" y="697" class="muted">⌄</text>
+        <line x1="566" y1="692" x2="648" y2="692" stroke="#9bbce5" stroke-width="1.5"/><path d="M642 686l8 6-8 6" fill="none" stroke="#2f80ed" stroke-width="2"/>
+        <rect x="672" y="676" width="322" height="32" rx="7" fill="#f7fbff" stroke="#8dbcf0"/><text x="687" y="697" class="ink body">设备编号</text><text x="964" y="697" class="muted">⌄</text><circle cx="1024" cy="692" r="4" fill="#18a77d"/><text x="1035" y="697" class="green small">已匹配</text>
+      </g>
+      <g>
+        <rect x="140" y="728" width="960" height="52" rx="8" fill="#fff" stroke="#e0e8f2"/>
+        <text x="164" y="761" class="muted small">02</text><rect x="220" y="738" width="322" height="32" rx="7" fill="#fff" stroke="#c8d7e8"/><text x="235" y="759" class="ink body">仪器名称</text><text x="512" y="759" class="muted">⌄</text>
+        <line x1="566" y1="754" x2="648" y2="754" stroke="#9bbce5" stroke-width="1.5"/><path d="M642 748l8 6-8 6" fill="none" stroke="#2f80ed" stroke-width="2"/>
+        <rect x="672" y="738" width="322" height="32" rx="7" fill="#f7fbff" stroke="#8dbcf0"/><text x="687" y="759" class="ink body">仪器名称</text><text x="964" y="759" class="muted">⌄</text><circle cx="1024" cy="754" r="4" fill="#18a77d"/><text x="1035" y="759" class="green small">已匹配</text>
+      </g>
+      <g>
+        <rect x="140" y="790" width="960" height="52" rx="8" fill="#fff" stroke="#e0e8f2"/>
+        <text x="164" y="823" class="muted small">03</text><rect x="220" y="800" width="322" height="32" rx="7" fill="#fff" stroke="#c8d7e8"/><text x="235" y="821" class="ink body">检定日期</text><text x="512" y="821" class="muted">⌄</text>
+        <line x1="566" y1="816" x2="648" y2="816" stroke="#9bbce5" stroke-width="1.5"/><path d="M642 810l8 6-8 6" fill="none" stroke="#2f80ed" stroke-width="2"/>
+        <rect x="672" y="800" width="322" height="32" rx="7" fill="#fffaf2" stroke="#e3bd7c"/><text x="687" y="821" class="muted body">请选择目标模板项</text><text x="964" y="821" class="muted">⌄</text><circle cx="1024" cy="816" r="4" fill="#e29a2d"/><text x="1035" y="821" class="orange small">待配置</text>
+      </g>
+      <g>
+        <rect x="140" y="852" width="960" height="52" rx="8" fill="#f7fbff" stroke="#d3e2f3"/>
+        <text x="164" y="885" class="muted small">04</text><rect x="220" y="862" width="322" height="32" rx="7" fill="#f0f7ff" stroke="#b6d3f5"/><text x="235" y="883" class="ink body">证书编号</text><text x="512" y="883" class="muted">⌄</text>
+        <line x1="566" y1="878" x2="648" y2="878" stroke="#9bbce5" stroke-width="1.5"/><path d="M642 872l8 6-8 6" fill="none" stroke="#2f80ed" stroke-width="2"/>
+        <rect x="672" y="862" width="322" height="32" rx="7" fill="#fff" stroke="#c8d7e8"/><text x="687" y="883" class="ink body">证书编号</text><text x="964" y="883" class="muted">⌄</text><circle cx="1024" cy="878" r="4" fill="#18a77d"/><text x="1035" y="883" class="green small">已匹配</text>
+      </g>
+    </g>
+
+    <line x1="1130" y1="466" x2="1130" y2="924" stroke="#e3ebf5"/>
+    <text x="1160" y="495" class="serif ink" font-size="20" font-weight="700">映射预览</text>
+    <text x="1160" y="520" class="sans muted small">目标模板 · 中洲转送 · 主表</text>
+    <rect x="1160" y="548" width="376" height="168" rx="9" fill="#fff" stroke="#cfdae8"/>
+    <rect x="1160" y="548" width="376" height="30" rx="9" fill="#edf3f9"/>
+    <line x1="1204" y1="548" x2="1204" y2="716" stroke="#dbe5ef"/><line x1="1348" y1="548" x2="1348" y2="716" stroke="#dbe5ef"/><line x1="1460" y1="548" x2="1460" y2="716" stroke="#dbe5ef"/>
+    <g class="sans muted small"><text x="1181" y="568" text-anchor="middle">#</text><text x="1276" y="568" text-anchor="middle">A · 源字段</text><text x="1404" y="568" text-anchor="middle">B · 目标字段</text><text x="1498" y="568" text-anchor="middle">状态</text></g>
+    <g class="sans small">
+      <line x1="1160" y1="606" x2="1536" y2="606" stroke="#edf1f5"/><line x1="1160" y1="644" x2="1536" y2="644" stroke="#edf1f5"/><line x1="1160" y1="682" x2="1536" y2="682" stroke="#edf1f5"/>
+      <text x="1181" y="594" text-anchor="middle" class="muted">1</text><text x="1220" y="594" class="ink">设备编号</text><rect x="1358" y="581" width="94" height="22" rx="5" fill="#eaf4ff"/><text x="1405" y="596" text-anchor="middle" class="blue">设备编号</text><circle cx="1498" cy="592" r="4" fill="#18a77d"/>
+      <text x="1181" y="632" text-anchor="middle" class="muted">2</text><text x="1220" y="632" class="ink">仪器名称</text><rect x="1358" y="619" width="94" height="22" rx="5" fill="#edf8f4"/><text x="1405" y="634" text-anchor="middle" class="green">仪器名称</text><circle cx="1498" cy="630" r="4" fill="#18a77d"/>
+      <text x="1181" y="670" text-anchor="middle" class="muted">3</text><text x="1220" y="670" class="ink">检定日期</text><rect x="1358" y="657" width="94" height="22" rx="5" fill="#fff4e2"/><text x="1405" y="672" text-anchor="middle" class="orange">待配置</text><circle cx="1498" cy="668" r="4" fill="#e29a2d"/>
+      <text x="1181" y="708" text-anchor="middle" class="muted">4</text><text x="1220" y="708" class="ink">证书编号</text><text x="1405" y="708" text-anchor="middle" class="muted">证书编号</text><circle cx="1498" cy="706" r="4" fill="#18a77d"/>
+    </g>
+    <rect x="1160" y="742" width="376" height="92" rx="9" fill="#f7fbff" stroke="#d9e7f5"/>
+    <text x="1182" y="770" class="sans ink" font-size="14" font-weight="700">校验结果</text>
+    <text x="1182" y="797" class="sans green small">✓　源字段均已识别</text><text x="1340" y="797" class="sans green small">✓　无重复映射</text>
+    <text x="1182" y="820" class="sans orange small">!　仍有 2 项待配置</text>
+    <text x="1160" y="875" class="sans muted small">映射名称：<tspan class="ink" font-weight="700">一键转送 · 收发委托单</tspan></text>
+    <text x="1160" y="901" class="sans muted small">保存后可在转送对象页面直接复用</text>
+  </main>
+</svg>

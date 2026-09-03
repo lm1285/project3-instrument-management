@@ -65,6 +65,9 @@ export class ApiClient {
     // this client, so clear both completed and in-flight GET requests.
     if (typeof window !== 'undefined') {
       window.addEventListener(AUTH_SESSION_CHANGED_EVENT, () => this.clearCache());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this.clearCache();
+      });
     }
   }
 

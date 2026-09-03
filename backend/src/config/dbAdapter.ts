@@ -33,7 +33,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     // WAL allows concurrent readers while a transfer task is writing. The
     // busy timeout prevents transient SQLITE_BUSY errors from surfacing as
     // 30 second HTTP timeouts in production.
-    await this.db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA synchronous = NORMAL;');
+    await this.db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 15000; PRAGMA synchronous = NORMAL;');
     await this.db.run('PRAGMA foreign_keys = ON');
   }
 
