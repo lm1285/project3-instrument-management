@@ -2,8 +2,8 @@
 setlocal
 pushd "%~dp0"
 call aliyun-deploy-core.bat CODE
-popd
 set "RESULT=%ERRORLEVEL%"
+popd
 if "%RESULT%"=="0" (
   echo.
   echo [OK] 阿里云代码部署完成。

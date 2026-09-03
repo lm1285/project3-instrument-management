@@ -5,8 +5,8 @@ choice /C YN /N /M "Continue? [Y/N] "
 if errorlevel 2 exit /b 0
 pushd "%~dp0"
 call aliyun-deploy-core.bat FULL
-popd
 set "RESULT=%ERRORLEVEL%"
+popd
 if "%RESULT%"=="0" (
   echo.
   echo [OK] 阿里云全量部署完成。

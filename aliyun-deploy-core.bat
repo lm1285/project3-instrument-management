@@ -62,12 +62,23 @@ if not defined TAR_CMD goto :tool_error
 
 for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "DEPLOY_STAMP=%%I"
 set "LOCAL_ARCHIVE=%TEMP%\%PROJECT_NAME%_%DEPLOY_STAMP%.tar"
+set "VERSION_BACKUP_DIR=%TEMP%\%PROJECT_NAME%_version_%DEPLOY_STAMP%"
 set "REMOTE_APP=%DEPLOY_DIR%/%PROJECT_NAME%"
 set "REMOTE_BACKUP=%DEPLOY_DIR%/backups/%PROJECT_NAME%/%DEPLOY_STAMP%"
 
 echo ========================================
 if /I "%DEPLOY_MODE%"=="CODE" (echo   Deploy code only - preserve cloud data) else (echo   Full deploy - replace cloud data with local data)
 echo ========================================
+
+echo [0/7] Prepare deployment version...
+mkdir "%VERSION_BACKUP_DIR%" >nul 2>&1
+if errorlevel 1 goto :version_backup_error
+copy /y "package.json" "%VERSION_BACKUP_DIR%\package.json" >nul || goto :version_backup_error
+copy /y "package-lock.json" "%VERSION_BACKUP_DIR%\package-lock.json" >nul || goto :version_backup_error
+copy /y "public\version.json" "%VERSION_BACKUP_DIR%\frontend-version.json" >nul || goto :version_backup_error
+copy /y "backend\public\version.json" "%VERSION_BACKUP_DIR%\backend-version.json" >nul || goto :version_backup_error
+node "scripts\update-version.mjs"
+if errorlevel 1 goto :version_error
 
 echo [1/7] Check SSH connection...
 "%SSH_CMD%" -o StrictHostKeyChecking=no -i "!SSH_KEY_PATH!" -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "echo SSH connected" >nul
@@ -105,6 +116,7 @@ echo [7/7] Verify service...
 if errorlevel 1 goto :verify_error
 
 echo.
+if exist "%VERSION_BACKUP_DIR%" rmdir /s /q "%VERSION_BACKUP_DIR%" >nul 2>&1
 echo Deployment completed successfully.
 echo Cloud data backup: %REMOTE_BACKUP%/data
 echo Frontend: http://%SERVER_IP%
@@ -133,7 +145,18 @@ echo [ERROR] Backend restart or frontend publish failed.
 goto :failed
 :verify_error
 echo [ERROR] Health check failed. Review PM2 logs on the server.
+goto :failed
+:version_backup_error
+echo [ERROR] Failed to back up local version files.
+goto :failed
+:version_error
+echo [ERROR] Failed to prepare the next deployment version.
 :failed
+if exist "%VERSION_BACKUP_DIR%\package.json" copy /y "%VERSION_BACKUP_DIR%\package.json" "package.json" >nul 2>&1
+if exist "%VERSION_BACKUP_DIR%\package-lock.json" copy /y "%VERSION_BACKUP_DIR%\package-lock.json" "package-lock.json" >nul 2>&1
+if exist "%VERSION_BACKUP_DIR%\frontend-version.json" copy /y "%VERSION_BACKUP_DIR%\frontend-version.json" "public\version.json" >nul 2>&1
+if exist "%VERSION_BACKUP_DIR%\backend-version.json" copy /y "%VERSION_BACKUP_DIR%\backend-version.json" "backend\public\version.json" >nul 2>&1
+if exist "%VERSION_BACKUP_DIR%" rmdir /s /q "%VERSION_BACKUP_DIR%" >nul 2>&1
 if exist "%LOCAL_ARCHIVE%" del /q "%LOCAL_ARCHIVE%" >nul 2>&1
 pause
 exit /b 1
