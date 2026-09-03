@@ -35,7 +35,16 @@ function cellToAddress(cell: string): { r: number; c: number } { const match = S
 function readRows(filePath: string, headerRow: number, dataStartRow: number) {
   const workbook = XLSX.readFile(filePath, { cellDates: false });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: '' });
+  // `sheet_to_json` uses the worksheet's !ref origin when no range is given.
+  // Templates whose used range starts at B1 therefore return B as array index
+  // 0, while generated cell addresses are absolute (index 0 = column A).
+  // Read from A1 so array indexes always match Excel column indexes.
+  const usedRange = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { e: { r: 0, c: 0 } };
+  const rows = XLSX.utils.sheet_to_json<Row>(sheet, {
+    header: 1,
+    defval: '',
+    range: { s: { r: 0, c: 0 }, e: usedRange.e },
+  });
   const header = (rows[Math.max(0, headerRow - 1)] || []).map((item) => String(item ?? '').trim());
   const start = Math.max(0, dataStartRow - 1);
   // Excel's used range often includes hundreds of formatted-but-empty rows.
@@ -54,6 +63,13 @@ function readRows(filePath: string, headerRow: number, dataStartRow: number) {
     }
   }
   return { workbook, sheet, rows, header, data };
+}
+
+function columnCountForHeader(header: string[]): number {
+  for (let index = header.length - 1; index >= 0; index -= 1) {
+    if (String(header[index] ?? '').trim() !== '') return index + 1;
+  }
+  return 1;
 }
 
 type HeaderCacheEntry = { mtimeMs: number; size: number; header: string[] };
@@ -82,10 +98,23 @@ function setCellValue(sheet: XLSX.WorkSheet, row: number, column: number, value:
   sheet[address] = existing;
 }
 
+// Generated rows must not retain values from a template/sample workbook.
+// Clear only the cell value while leaving styles, widths and formulas intact.
+function clearRowValues(updates: Map<string, unknown>, row: number, columnCount: number) {
+  for (let column = 0; column < columnCount; column += 1) {
+    const address = XLSX.utils.encode_cell({ r: row, c: column });
+    updates.set(address, '');
+  }
+}
+
 // Update only cell text in the original XLSX package. Rebuilding a workbook with
 // xlsx would discard template formatting, merges, dimensions and print settings.
 function xmlEscape(value: unknown): string {
+  // XML 1.0 permits tab, LF and CR, but rejects the remaining C0 controls.
+  // Strip those characters before escaping text so imported business data
+  // cannot make the generated worksheet invalid.
   return String(value ?? '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -158,6 +187,32 @@ function withStyle(attributes: string, styleIndex: number | null): string {
   return `${withoutStyle} s="${styleIndex}"`;
 }
 
+function expandWorksheetDimension(xml: string, updates: Map<string, unknown>): string {
+  if (!updates.size) return xml;
+  const dimension = xml.match(/<dimension\b([^>]*\bref=["'])([A-Z]+\d+)(?::([A-Z]+\d+))?(["'][^>]*)\/>/i);
+  if (!dimension) return xml;
+  const start = dimension[2];
+  const end = dimension[3] || start;
+  const decodeAddress = (address: string) => {
+    const match = address.match(/^([A-Z]+)(\d+)$/i);
+    return match ? { column: colToIndex(match[1]), row: Number(match[2]) - 1 } : null;
+  };
+  const currentStart = decodeAddress(start);
+  const currentEnd = decodeAddress(end);
+  if (!currentStart || !currentEnd) return xml;
+  let maxColumn = currentEnd.column;
+  let maxRow = currentEnd.row;
+  for (const address of updates.keys()) {
+    const decoded = decodeAddress(address);
+    if (!decoded) continue;
+    maxColumn = Math.max(maxColumn, decoded.column);
+    maxRow = Math.max(maxRow, decoded.row);
+  }
+  const expandedEnd = XLSX.utils.encode_cell({ c: maxColumn, r: maxRow });
+  if (expandedEnd === end) return xml;
+  return xml.replace(dimension[0], `<dimension${dimension[1]}${start}:${expandedEnd}${dimension[4]}/>`);
+}
+
 export async function writeTemplateText(templatePath: string, outputPath: string, updates: Map<string, unknown>) {
   const zip = await JSZip.loadAsync(await fs.promises.readFile(templatePath));
   const workbookFile = zip.file('xl/workbook.xml');
@@ -175,7 +230,30 @@ export async function writeTemplateText(templatePath: string, outputPath: string
   const stylesFile = zip.file('xl/styles.xml');
   const styleManager = createCenteredStyleManager(stylesFile ? await stylesFile.async('string') : null);
   let xml = await sheetFile.async('string');
-  for (const [address, value] of updates) {
+  // Replace all existing cells in one XML pass. Per-cell full-document regex
+  // scans become prohibitively slow when generated rows are cleared.
+  const pending = new Map(updates);
+  // Keep the attribute capture non-greedy. A greedy capture consumes the
+  // self-closing slash and then treats the following cells as the value of a
+  // normal cell, which corrupts rows when templates contain blank cells.
+  xml = xml.replace(/<c\b([^>]*?\br=["']([A-Z]+\d+)["'][^>]*?)(?:\/\s*>|>([\s\S]*?)<\/c>)/gi, (all, attrs: string, address: string) => {
+    if (!pending.has(address)) return all;
+    const value = pending.get(address);
+    pending.delete(address);
+    // The first capture includes the slash in a self-closing `<c .../>`
+    // because the attribute matcher is intentionally broad. It must not be
+    // copied into the opening tag (`<c .../ t=...>` is invalid XML).
+    const cleanAttrs = attrs
+      .replace(/\/\s*$/i, '')
+      .replace(/\s+t=["'][^"']*["']/i, '');
+    return `<c${withStyle(cleanAttrs, styleManager.styleFor(cleanAttrs))} t="inlineStr">${richText(value)}</c>`;
+  });
+  // Empty updates for absent cells only clear sample values; do not create
+  // thousands of empty XML nodes.
+  for (const [address, value] of pending) {
+    if (String(value ?? '') === '') pending.delete(address);
+  }
+  for (const [address, value] of pending) {
     const text = richText(value);
     const selfClosingPattern = new RegExp(`<c([^>]*\\br=["']${address}["'][^>]*?)\\s*/>`, 'i');
     const normalPattern = new RegExp(`<c([^>]*\\br=["']${address}["'][^>]*)>([^<]*(?:<(?!/?c\\b)[\\s\\S]*?)?)</c>`, 'i');
@@ -204,6 +282,7 @@ export async function writeTemplateText(templatePath: string, outputPath: string
     }
     else xml = xml.replace('</sheetData>', `<row r="${rowNumber}">${cell}</row></sheetData>`);
   }
+  xml = expandWorksheetDimension(xml, updates);
   zip.file(sheetPath, xml);
   const styledXml = styleManager.toXml();
   if (styledXml) zip.file('xl/styles.xml', styledXml);
@@ -555,6 +634,7 @@ class OneClickTransferService {
       const dynamicForcedColumns = mappings.filter((item) => item.forced_key && !item.target_cell).map((mapping) => ({ mapping, column: importBook.header.findIndex((header) => header === String(mapping.target_column || mapping.forced_key || '').trim()) })).filter((item) => item.column >= 0);
       for (let i = 0; i < source.data.length; i += 1) {
         const outputRow = Math.max(0, Number(importTemplate.data_start_row || 2) - 1) + i;
+        clearRowValues(updates, outputRow, columnCountForHeader(importBook.header));
         for (const { mapping, column } of dynamicForcedColumns) { const anchor = mergedAnchor(importBook.sheet, outputRow, column); updates.set(XLSX.utils.encode_cell(anchor), forced[normalizeForcedKey(mapping.forced_key) as keyof typeof forced] ?? ''); }
         const rowValues = new Map<string, unknown[]>();
         for (const mapping of mappings.filter((item) => !item.forced_key && item.source_column && item.target_column)) {
@@ -640,6 +720,7 @@ class OneClickTransferService {
         const dynamicForcedColumns = mappings.filter((item) => normalizeForcedKey(item.forced_key) === '校准日期' && !item.target_cell).map((mapping) => ({ mapping, column: targetBook.header.findIndex((header) => header === String(mapping.target_column || mapping.forced_key || '').trim()) })).filter((item) => item.column >= 0);
         for (let i = 0; i < group.rows.length; i += 1) {
           const outputRow = Math.max(0, Number(target.data_start_row || 2) - 1) + i;
+          clearRowValues(updates, outputRow, columnCountForHeader(targetBook.header));
           for (const { mapping, column } of dynamicForcedColumns) { const anchor = mergedAnchor(targetBook.sheet, outputRow, column); updates.set(XLSX.utils.encode_cell(anchor), forced[normalizeForcedKey(mapping.forced_key) as keyof typeof forced] ?? ''); }
           const rowValues = new Map<string, unknown[]>();
           for (const mapping of mappings.filter((item) => !item.forced_key)) {
@@ -941,6 +1022,7 @@ class OneClickTransferService {
         .filter((item) => item.column >= 0);
       for (let i = 0; i < rows.length; i += 1) {
         const outputRow = Math.max(0, Number(target.data_start_row || 2) - 1) + i;
+        clearRowValues(updates, outputRow, columnCountForHeader(targetBook.header));
         for (const { mapping, column } of dynamicForcedColumns) {
           const anchor = mergedAnchor(targetBook.sheet, outputRow, column);
           const forcedKey = normalizeForcedKey(mapping.forced_key) as keyof typeof forced;

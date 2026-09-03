@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import dbConfig from './config/dbConfig';
 import { APP_ROUTE_REGISTRATIONS } from './config/appRoutes';
+import { isDisabledApiPath } from './config/moduleAvailability';
 
 dotenv.config();
 
@@ -73,6 +74,16 @@ function registerHealthRoutes(application: express.Express) {
 }
 
 function registerApiRoutes(application: express.Express) {
+  application.use((req, res, next) => {
+    if (isDisabledApiPath(req.path)) {
+      return res.status(503).json({
+        success: false,
+        code: 'MODULE_DISABLED',
+        message: '该模块暂未启用，当前仅开放一键转送及系统管理功能',
+      });
+    }
+    return next();
+  });
   APP_ROUTE_REGISTRATIONS.forEach(({ mountPath, router }) => {
     application.use(mountPath, router);
   });

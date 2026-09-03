@@ -1,4 +1,5 @@
 import { APP_ROUTES } from '../../constants/routes';
+import { isModuleEnabled } from '../../config/moduleAvailability';
 
 export interface MenuItemConfig {
   id: string;
@@ -121,3 +122,5 @@ export const BASE_MENU_ITEMS: MenuItemConfig[] = [
     path: APP_ROUTES.oneClickTransfer,
   },
 ];
+
+export { isModuleEnabled };

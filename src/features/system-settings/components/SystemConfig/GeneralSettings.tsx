@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
 import { Card, Tabs } from 'antd';
 import {
-  LayoutOutlined,
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSystemSettings } from '../../hooks/useSystemSettings';
-import PersonalizationSettings from './settings/PersonalizationSettings';
-import TemplateSettings from './settings/TemplateSettings';
 import UserManagement from '../UserManagement/UserManagement';
 import { PermissionGuard } from '../../../../features/auth/components/PermissionGuard';
 import { usePermission } from '../../../../hooks/usePermission';
@@ -21,45 +18,15 @@ const GeneralSettings: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const items = useMemo(() => [
-    {
-      key: 'users',
-      label: <span><TeamOutlined /> 用户管理</span>,
-      children: <UserManagement />,
-    },
-    {
-      key: 'personalization',
-      label: <span><SettingOutlined /> 个性化设置</span>,
-      children: <PersonalizationSettings />,
-    },
-    {
-      key: 'template',
-      label: <span><LayoutOutlined /> 模板设置</span>,
-      children: <TemplateSettings />,
-    },
-  ].filter((item) => {
-    if (item.key === 'users') {
-      return hasPermission('system:user:view');
-    }
-
-    if (item.key === 'template') {
-      return hasPermission('system:template:view');
-    }
-
-    if (item.key === 'personalization') {
-      return hasPermission('system:config:view');
-    }
-
-    return true;
-  }), [hasPermission]);
+  const items = useMemo(() => hasPermission('system:user:view') ? [{
+    key: 'users',
+    label: <span><TeamOutlined /> 用户管理</span>,
+    children: <UserManagement />,
+  }] : [], [hasPermission]);
 
   const activeKey = useMemo(() => {
     if (location.pathname === APP_ROUTES.systemSettingsUserManagement && items.some((item) => item.key === 'users')) {
       return 'users';
-    }
-
-    if (items.some((item) => item.key === 'personalization')) {
-      return 'personalization';
     }
 
     return items[0]?.key;
@@ -71,18 +38,18 @@ const GeneralSettings: React.FC = () => {
       return;
     }
 
-    navigate(APP_ROUTES.systemSettingsConfiguration);
+    return;
   };
 
   return (
-    <PermissionGuard permission={['system:config:view', 'system:user:view', 'system:template:view']}>
+    <PermissionGuard permission={['system:config:view', 'system:user:view']}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <ModuleHeader
           title="系统配置"
           icon={<SettingOutlined />}
           eyebrow="System Configuration"
-          subtitle="统一管理用户、个性化和模板配置，用户管理与菜单设置已整合到同一套界面中。"
-          meta={['用户管理与系统配置已合并', '保留顶部用户菜单作为主入口']}
+          subtitle="统一管理系统用户与基础菜单配置。"
+          meta={['用户管理与系统配置已合并', '个性化与模板配置暂未启用']}
         />
 
         <Card variant="borderless" styles={{ body: { padding: '0 14px 14px' } }}>

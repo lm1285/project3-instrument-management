@@ -309,6 +309,9 @@ const OneClickTransferPage: React.FC = () => {
       const response = await apiClient.upload(
         "/one-click-transfer/process",
         data,
+        // Excel generation is synchronous on the backend and can legitimately
+        // exceed the normal API timeout for larger workbooks.
+        { timeout: 120000 },
       );
       if (!response.success) throw new Error(response.message);
       appMessage.success("处理完成");

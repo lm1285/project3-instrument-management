@@ -43,6 +43,7 @@ import { messageService } from '../../services/messageService';
 import { applyThemeSettings } from '../../utils/theme/applyThemeSettings';
 import { APP_ROUTES } from '../../constants/routes';
 import { DatabaseStatus } from '../UI/DatabaseStatus';
+import { isModuleEnabled, isRouteEnabled } from '../../config/moduleAvailability';
 import {
   BASE_MENU_ITEMS,
   DEFAULT_MODULE_SORTING,
@@ -303,6 +304,9 @@ function useFilteredMenuItems(
 
     return sortedMenuItems
       .filter((item) => {
+        if (!isModuleEnabled(item.id)) {
+          return false;
+        }
         if (isMobile && MOBILE_HIDDEN_MENU_IDS.has(item.id)) {
           return false;
         }
@@ -319,6 +323,9 @@ function useFilteredMenuItems(
         }
 
         const children = item.children.filter((child) => {
+          if (!isModuleEnabled(child.id)) {
+            return false;
+          }
           const childPermission = MENU_PERMISSION_MAP[child.id];
           if (childPermission && !hasPermission(childPermission)) {
             return false;
@@ -565,8 +572,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       try {
         setGlobalSearchLoading(true);
         const [instrumentResult, alertResult] = await Promise.allSettled([
-          fetchInstruments(),
-          getAlerts({ page: 1, pageSize: 100 }),
+          isModuleEnabled('instrumentManagement') ? fetchInstruments() : Promise.resolve([]),
+          isModuleEnabled('dashboard') ? getAlerts({ page: 1, pageSize: 100 }) : Promise.resolve({ success: true, data: [] }),
         ]);
 
         const rows: GlobalSearchRow[] = [];
@@ -714,10 +721,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const tabItems = useMemo(() => {
     const items = [
-      { id: 'dashboard', label: '首页', path: '/dashboard', icon: MENU_ICONS.dashboard },
+      isModuleEnabled('dashboard')
+        ? { id: 'dashboard', label: '首页', path: '/dashboard', icon: MENU_ICONS.dashboard }
+        : { id: 'oneClickTransfer', label: '一键转送', path: APP_ROUTES.oneClickTransfer, icon: MENU_ICONS.oneClickTransfer },
     ];
 
-    if (activeItem && activeItem.path !== '/dashboard') {
+    if (activeItem && activeItem.path !== '/dashboard' && activeItem.path !== APP_ROUTES.oneClickTransfer) {
       items.push({
         id: activeItem.id,
         label: activeItem.label,
@@ -734,6 +743,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const allMenuItems = flattenMenuItems([...menuItems, ...HIDDEN_ROUTE_ITEMS]);
     const menuRows = allMenuItems
       .filter((item) => {
+        if (!isRouteEnabled(item.path)) {
+          return false;
+        }
         const dedupeKey = `${item.path}|${item.label}|menu`;
         if (seen.has(dedupeKey)) {
           return false;
@@ -755,6 +767,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       }));
     const routeRows = GLOBAL_SEARCH_PAGE_ITEMS
       .filter((item) => {
+        if (!isRouteEnabled(item.pagePath)) {
+          return false;
+        }
         const dedupeKey = `${item.pagePath}|${item.name}|route`;
         if (seen.has(dedupeKey)) {
           return false;

@@ -1,6 +1,5 @@
 import { startServer } from './app';
 import dbConfig from './config/dbConfig';
-import flowService from './services/flowService';
 import backupService from './services/backupService';
 import maintenanceService from './services/maintenanceService';
 import { registerScheduledTask } from './utils/scheduler';
@@ -43,16 +42,6 @@ function registerBackgroundTasks() {
     },
   });
 
-  registerScheduledTask({
-    name: 'reservation-processor',
-    intervalMs: 60 * 1000,
-    run: async () => {
-      const count = await flowService.processDueReservations();
-      if (count > 0) {
-        console.log(`Processed ${count} due reservations`);
-      }
-    },
-  });
 }
 
 async function initializeApp() {

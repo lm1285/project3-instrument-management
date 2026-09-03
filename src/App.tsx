@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { App as AntdApp, ConfigProvider, theme } from 'antd';
 import { useMediaQuery } from 'react-responsive';
 import zhCN from 'antd/locale/zh_CN';
@@ -30,6 +30,7 @@ import LogViewer from './features/system-settings/components/OperationLogs/LogVi
 import BackupManager from './features/system-settings/components/DataBackup/BackupManager';
 import SystemMaintenancePage from './features/system-settings/components/SystemConfig/SystemMaintenancePage';
 import OneClickTransferPage from './features/one-click-transfer/OneClickTransferPage';
+import { isRouteEnabled } from './config/moduleAvailability';
 import './App.css';
 
 dayjs.extend(utc);
@@ -50,15 +51,21 @@ const DashboardRoute = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useMediaQuery({ maxWidth: 767 });
 
   if (isMobile) {
-    return <Navigate to={APP_ROUTES.instrumentFlow} replace />;
+    return <Navigate to={APP_ROUTES.oneClickTransfer} replace />;
   }
 
   return <>{children}</>;
 };
 
-const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
-  <AppLayout>{children}</AppLayout>
-);
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+
+  if (!isRouteEnabled(location.pathname)) {
+    return <Navigate to={APP_ROUTES.oneClickTransfer} replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+};
 
 function App() {
   const [settings] = useSystemSettings();
@@ -446,7 +453,7 @@ function HomeRedirect() {
     [APP_ROUTES.statisticsInstrument, 'stats:instrument:view'],
     [APP_ROUTES.statisticsUsageConsumption, 'stats:usage:view'],
     [APP_ROUTES.oneClickTransfer, 'transfer:view'],
-  ].find(([, permission]) => hasPermission(permission))?.[0] || APP_ROUTES.login;
+  ].filter(([route]) => isRouteEnabled(route)).find(([, permission]) => hasPermission(permission))?.[0] || APP_ROUTES.oneClickTransfer;
 
   return <Navigate to={defaultRoute} replace />;
 }
