@@ -20,12 +20,15 @@ fi
 
 echo "Install systemd service"
 sudo cp "$APP_DIR/deploy/systemd/wzglpt-backend.service" /etc/systemd/system/wzglpt-backend.service
+sudo cp "$APP_DIR/deploy/logrotate/wzglpt-nginx" /etc/logrotate.d/wzglpt-nginx
+sudo mkdir -p /etc/systemd/journald.conf.d
+sudo cp "$APP_DIR/deploy/journald/30-wzglpt-retention.conf" /etc/systemd/journald.conf.d/30-wzglpt-retention.conf
 sudo systemctl daemon-reload
 sudo systemctl enable wzglpt-backend
+sudo systemctl restart systemd-journald
 
 echo "Nginx test & reload"
 sudo nginx -t
 sudo systemctl reload nginx
 
 echo "Bootstrap done."
-

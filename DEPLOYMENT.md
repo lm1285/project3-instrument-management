@@ -105,6 +105,22 @@ pm2 save
 pm2 startup
 ```
 
+PM2 日志滚动（`deploy_server.sh` 会自动配置；手工部署时执行一次）:
+
+```bash
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 20M
+pm2 set pm2-logrotate:retain 14
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm-ss
+pm2 set pm2-logrotate:workerInterval 30
+pm2 save
+```
+
+默认情况下后端只记录写请求、4xx/5xx 和耗时超过 1 秒的请求。短期排障可在 PM2 环境变量中设置 `LOG_ALL_REQUESTS=true`，结束后立即关闭；可用 `SLOW_REQUEST_MS` 调整慢请求阈值，`AUDIT_RETENTION_DAYS` 调整审计日志保留天数（默认 180 天）。
+
+系统设置 -> 操作日志页面提供“下载诊断包”。下载前填入错误响应中的 `X-Request-ID`，服务端会按该 ID 提取应用日志和审计记录；诊断包默认最多读取 8MB 应用日志，硬上限 20MB，并且仅授予 `system:audit:export` 权限的管理员/用户使用。
+
 常用命令：
 
 ```bash
@@ -135,6 +151,8 @@ sudo nginx -t
 sudo systemctl restart nginx
 sudo systemctl enable nginx
 ```
+
+`bootstrap.sh` 会安装 Nginx 的 14 天/20MB 滚动规则和 systemd journal 的 500MB/14 天上限。若不使用 `bootstrap.sh`，请手工复制 `deploy/logrotate/wzglpt-nginx` 至 `/etc/logrotate.d/`，并复制 `deploy/journald/30-wzglpt-retention.conf` 至 `/etc/systemd/journald.conf.d/` 后重启 `systemd-journald`。
 
 如需 HTTPS，可改用 `deploy/nginx/https_nginx.conf` 或 `deploy/nginx/wzglpt_ssl.conf`。
 

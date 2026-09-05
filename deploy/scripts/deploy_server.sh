@@ -84,6 +84,7 @@ chcon -R -t httpd_sys_rw_content_t ${SERVER_DIR}/backend/data 2>/dev/null || tru
 echo '=== 5. Dependencies ==='
 cd ${SERVER_DIR}/backend
 npm install --production
+mkdir -p ${SERVER_DIR}/backend/logs
 
 echo '=== 6. Service Restart ==='
 # Check if pm2 is installed
@@ -91,14 +92,22 @@ if ! command -v pm2 &> /dev/null; then
     npm install -g pm2
 fi
 
-# Start or Reload backend
-# Clear old logs to avoid confusion
-pm2 flush instrument-backend 2>/dev/null || true
+# Keep PM2 application logs bounded even when the application is noisy.
+if ! pm2 describe pm2-logrotate &> /dev/null; then
+    pm2 install pm2-logrotate
+fi
+pm2 set pm2-logrotate:max_size 20M
+pm2 set pm2-logrotate:retain 14
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm-ss
+pm2 set pm2-logrotate:workerInterval 30
 
+# Start or Reload backend
 # Force restart to ensure new code is loaded (avoid reload caching issues)
 pm2 delete instrument-backend 2>/dev/null || true
 echo 'Starting new service...'
 pm2 start ecosystem.config.js --env production
+pm2 save
 
 echo '=== 7. Nginx & Finalize ==='
 # Fix permissions for Nginx

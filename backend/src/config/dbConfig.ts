@@ -471,6 +471,30 @@ class DatabaseConfig {
     `));
     await this.createIndex('excel_generation_records', 'idx_excel_generation_records_template_id', 'template_id');
     await this.createIndex('excel_generation_records', 'idx_excel_generation_records_generated_at', 'generated_at');
+
+    // Operation audit logs. Payloads are bounded and redacted by auditService.
+    await this.db.exec(this.getCreateTableSql('audit_logs', `
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        username TEXT,
+        role TEXT,
+        action TEXT NOT NULL,
+        module TEXT NOT NULL,
+        target_id TEXT,
+        payload_json TEXT,
+        ip TEXT,
+        user_agent TEXT,
+        request_id TEXT,
+        timestamp TEXT NOT NULL
+    `));
+    await this.createIndex('audit_logs', 'idx_audit_logs_timestamp', 'timestamp');
+    await this.createIndex('audit_logs', 'idx_audit_logs_user_timestamp', 'user_id, timestamp');
+    await this.createIndex('audit_logs', 'idx_audit_logs_module_action_timestamp', 'module, action, timestamp');
+    await this.createIndex('audit_logs', 'idx_audit_logs_request_id', 'request_id');
+    await this.db.exec(this.getCreateTableSql('audit_log_migrations', `
+        name TEXT PRIMARY KEY,
+        completed_at TEXT NOT NULL
+    `));
     // 26. Length Shadow Linkage Rules
     await this.db.exec(this.getCreateTableSql('length_shadow_linkage_rules', `
         id TEXT PRIMARY KEY,
@@ -623,6 +647,7 @@ class DatabaseConfig {
         template_group_name TEXT,
         template_item_name TEXT,
         match_keyword TEXT NOT NULL UNIQUE,
+        exclude_keyword TEXT,
         file_path TEXT NOT NULL,
         header_row INTEGER NOT NULL DEFAULT 1,
         data_start_row INTEGER NOT NULL DEFAULT 2,
@@ -643,6 +668,7 @@ class DatabaseConfig {
     await this.addColumnIfNotExists('transfer_quote_templates', 'template_item_name', 'TEXT');
     await this.addColumnIfNotExists('transfer_target_templates', 'template_group_name', 'TEXT');
     await this.addColumnIfNotExists('transfer_target_templates', 'template_item_name', 'TEXT');
+    await this.addColumnIfNotExists('transfer_target_templates', 'exclude_keyword', 'TEXT');
     await this.db.run("UPDATE transfer_upload_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), type_name), template_item_name=COALESCE(NULLIF(template_item_name,''), NULLIF(template_name,''), type_name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
     await this.db.run("UPDATE transfer_import_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), '导入格式模板组'), template_item_name=COALESCE(NULLIF(template_item_name,''), name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
     await this.db.run("UPDATE transfer_quote_templates SET template_group_name=COALESCE(NULLIF(template_group_name,''), '报价单模板组'), template_item_name=COALESCE(NULLIF(template_item_name,''), name) WHERE NULLIF(template_group_name,'') IS NULL OR NULLIF(template_item_name,'') IS NULL");
@@ -715,10 +741,12 @@ class DatabaseConfig {
         total_rows INTEGER NOT NULL DEFAULT 0,
         matched_rows INTEGER NOT NULL DEFAULT 0,
         skipped_rows INTEGER NOT NULL DEFAULT 0,
+        skip_detail_json TEXT,
         folder_name TEXT NOT NULL,
         created_at TEXT NOT NULL,
         completed_at TEXT
     `));
+    await this.addColumnIfNotExists('transfer_tasks', 'skip_detail_json', 'TEXT');
     await this.db.exec(this.getCreateTableSql('transfer_files', `
         id TEXT PRIMARY KEY,
         task_id TEXT NOT NULL,

@@ -6,6 +6,8 @@ import path from 'path';
 import dbConfig from './config/dbConfig';
 import { APP_ROUTE_REGISTRATIONS } from './config/appRoutes';
 import { isDisabledApiPath } from './config/moduleAvailability';
+import { operationAudit, requestContext } from './middleware/requestLogging';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -20,6 +22,10 @@ function getStaticOptions() {
 }
 
 function registerBaseMiddleware(application: express.Express) {
+  // Only trust the local reverse proxy, never arbitrary forwarding headers.
+  application.set('trust proxy', 'loopback');
+  application.use(requestContext);
+  application.use(operationAudit);
   application.use(compression());
   application.use(express.static(path.join(__dirname, '../public'), getStaticOptions()));
   application.use(cors({
@@ -90,10 +96,17 @@ function registerApiRoutes(application: express.Express) {
 }
 
 function registerErrorHandler(application: express.Express) {
-  application.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('Unhandled application error:', err);
+  application.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error('http.unhandled_exception', err, {
+      request_id: (req as any).requestId,
+      method: req.method,
+      path: req.originalUrl.split('?')[0] || req.path,
+      user_id: (req as any).user?.userId ?? (req as any).user?.id,
+      username: (req as any).user?.username,
+    });
     res.status(err.status || 500).json({
       message: err.message || 'Internal server error',
+      request_id: (req as any).requestId,
       error: process.env.NODE_ENV === 'production' ? {} : err,
     });
   });
@@ -109,12 +122,14 @@ const startServer = () => {
     const port = Number(process.env.PORT || 3002);
 
     app.listen(port, '0.0.0.0', () => {
-      console.log(`Server listening on http://localhost:${port}`);
-      console.log(`Health check: http://localhost:${port}/health`);
-      console.log(`API root: http://localhost:${port}${process.env.API_PREFIX || '/api'}`);
+      logger.info('server.listening', {
+        port,
+        health_check: `http://localhost:${port}/health`,
+        api_root: `http://localhost:${port}${process.env.API_PREFIX || '/api'}`,
+      });
     });
   } catch (error) {
-    console.error('Server failed to start', error);
+    logger.error('server.start_failed', error);
     process.exit(1);
   }
 };

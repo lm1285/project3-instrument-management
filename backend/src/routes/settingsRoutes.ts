@@ -28,7 +28,7 @@ router.put('/', async (req, res) => {
     const user = (req as any).user;
     if (!user) return res.status(401).json({ success: false, error: 'unauthorized' });
     await setUserSettings(String(user.userId), req.body);
-    try { logAudit({ user_id: String(user.userId), username: user.username, role: user.role, action: 'settings.update', module: 'system', payload_json: req.body }); } catch {}
+    void logAudit({ user_id: String(user.userId), username: user.username, role: user.role, action: 'settings.update', module: 'system', payload_json: req.body, request_id: (req as any).requestId, ip: req.ip, user_agent: req.get('user-agent') });
     res.json({ success: true });
   } catch (error: any) {
     console.error('Update settings error:', error);
@@ -61,7 +61,7 @@ router.put('/global', requireAdmin, async (req, res) => {
     }
 
     const user = (req as any).user;
-    try { logAudit({ user_id: String(user?.userId || ''), username: user?.username, role: user?.role, action: 'settings.update.global', module: 'system', payload_json: req.body }); } catch {}
+    void logAudit({ user_id: String(user?.userId || ''), username: user?.username, role: user?.role, action: 'settings.update.global', module: 'system', payload_json: req.body, request_id: (req as any).requestId, ip: req.ip, user_agent: req.get('user-agent') });
     res.json({ success: true });
   } catch (error: any) {
     console.error('Update global settings error:', error);

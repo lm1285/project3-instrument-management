@@ -28,6 +28,8 @@ import {
 import {
   DeleteOutlined,
   DownloadOutlined,
+  FileExcelOutlined,
+  FolderOpenOutlined,
   CopyOutlined,
   ArrowRightOutlined,
   CheckOutlined,
@@ -43,6 +45,7 @@ import {
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 import apiClient from "../../services/apiClient";
+import { PermissionGuard } from "../auth/components/PermissionGuard";
 import "./OneClickTransferPage.css";
 import "./MappingSettings.css";
 
@@ -61,6 +64,7 @@ type Target = {
   template_group_name?: string;
   template_item_name?: string;
   match_keyword: string;
+  exclude_keyword?: string;
   header_row: number;
   data_start_row: number;
   headers?: string[];
@@ -119,9 +123,10 @@ const TEMPLATE_GROUP_NAMES = {
   target: "转送对象模板组",
 } as const;
 
-const emptyConfig = { uploadTemplates: [], orderTemplates: [], importTemplates: [], quoteTemplates: [], importMappings: [], quoteMappings: [], quoteOrderMappings: [], targetTemplates: [], settings: {} };
+const emptyConfig = { uploadTemplates: [], orderTemplates: [], importTemplates: [], quoteTemplates: [], importMappings: [], quoteMappings: [], quoteOrderMappings: [], targetTemplates: [], monitoring: { summary: { ok: 0, warning: 0, error: 0 }, templates: [], mappings: [] }, settings: {} };
+const MAX_UPLOAD_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 const EXCEL_FILE_ACCEPT = ".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
-const taskPreviewColumns = ["仪器名称", "型号规格", "制造厂", "出厂编号", "管理编号", "测量范围"];
+const taskPreviewColumns = ["仪器名称", "型号规格", "制造厂", "出厂编号", "管理编号", "测量范围", "备注"];
 const getPreviewRows = (file: any) => {
   try {
     const rows = JSON.parse(file?.preview_data_json || "[]");
@@ -162,6 +167,8 @@ const OneClickTransferPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<dayjs.Dayjs | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [diagnosticRequestId, setDiagnosticRequestId] = useState("");
+  const [sourceDetection, setSourceDetection] = useState<{ status: "success" | "warning" | "error"; message: string } | null>(null);
   const sourceFileInputRef = useRef<HTMLInputElement>(null);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -189,6 +196,22 @@ const OneClickTransferPage: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+  const downloadDiagnosticBundle = async () => {
+    try {
+      const blob = await apiClient.download("/audits/diagnostic.zip", {
+        params: {
+          request_id: diagnosticRequestId.trim() || undefined,
+          hours: 24,
+          maxBytes: 8 * 1024 * 1024,
+        },
+        timeout: 60000,
+      });
+      downloadBlob(blob, diagnosticRequestId.trim() ? `diagnostic_logs_${diagnosticRequestId.trim().slice(0, 16)}.zip` : "diagnostic_logs.zip");
+      appMessage.success("诊断日志已下载");
+    } catch (error: any) {
+      appMessage.error(error?.message || "诊断日志下载失败");
+    }
+  };
   useEffect(() => {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void load({ silent: true });
@@ -202,6 +225,10 @@ const OneClickTransferPage: React.FC = () => {
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("focus", refreshWhenVisible);
     };
+  }, [load]);
+  useEffect(() => {
+    const timer = window.setInterval(() => void load({ silent: true }), 60_000);
+    return () => window.clearInterval(timer);
   }, [load]);
   const deleteTask = async (task: any) => {
     try {
@@ -221,6 +248,24 @@ const OneClickTransferPage: React.FC = () => {
       header: 1,
       defval: "",
     });
+    const detectForm = new FormData();
+    detectForm.append("file", file);
+    const detectionResponse: any = await apiClient.upload("/one-click-transfer/detect-source", detectForm);
+    const best = detectionResponse?.data?.best;
+    if (best?.confident) {
+      const detectedType = best.type as "quote" | "import" | "order";
+      const defaultMode = detectedType === "quote" ? "all" : "target";
+      setSourceType(detectedType);
+      setGenerationMode(defaultMode);
+      setHeaders(best.detectedHeaders || []);
+      form.setFieldsValue({ sourceType: detectedType, generationMode: defaultMode });
+      if (detectedType === "quote") { setQuoteTemplateId(best.id); form.setFieldsValue({ quoteTemplateId: best.id }); }
+      else if (detectedType === "import") { setImportTemplateId(best.id); form.setFieldsValue({ importTemplateId: best.id }); }
+      else { setOrderTemplateId(best.id); form.setFieldsValue({ orderTemplateId: best.id }); }
+      setSourceDetection({ status: "success", message: `已自动识别：${best.groupName} / ${best.itemName}` });
+      return;
+    }
+    setSourceDetection({ status: "warning", message: best ? `无法可靠区分文件类型，最接近“${best.groupName} / ${best.itemName}”，请人工确认。` : "未找到可用于识别的模板，请先完成模板配置。" });
     const selectedSourceType = form.getFieldValue("sourceType") || sourceType;
     const selectedTemplateId = selectedSourceType === "quote" ? (form.getFieldValue("quoteTemplateId") || quoteTemplateId) : selectedSourceType === "import" ? (form.getFieldValue("importTemplateId") || importTemplateId) : (form.getFieldValue("orderTemplateId") || orderTemplateId);
     const template = selectedSourceType === "quote"
@@ -244,6 +289,9 @@ const OneClickTransferPage: React.FC = () => {
   };
   const selectSourceFile = async (file: File) => {
     try {
+      if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+        throw new Error("待处理文件大小不能超过100MB");
+      }
       const snapshot = await snapshotUploadFile(file);
       setSourceFile({
         uid: `source-${snapshot.lastModified}`,
@@ -257,6 +305,7 @@ const OneClickTransferPage: React.FC = () => {
     } catch (error: any) {
       setSourceFile(null);
       setHeaders([]);
+      setSourceDetection({ status: "error", message: error?.message || "读取Excel文件失败" });
       appMessage.error(error?.message || "读取Excel文件失败");
     }
 
@@ -265,6 +314,7 @@ const OneClickTransferPage: React.FC = () => {
   const removeSourceFile = () => {
     setSourceFile(null);
     setHeaders([]);
+    setSourceDetection(null);
   };
   const handleMobileSourceFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -286,7 +336,7 @@ const OneClickTransferPage: React.FC = () => {
       const selectedSourceTemplateId = selectedSourceType === "quote" ? selectedQuoteTemplateId : selectedSourceType === "import" ? selectedImportTemplateId : selectedOrderTemplateId;
       if (!selectedSourceTemplateId) return appMessage.error("请先配置并选择源模板");
        if (selectedSourceType === "quote" && values.generationMode === "import" && !selectedImportTemplateId) return appMessage.error("请先选择导入格式模板");
-      if (selectedSourceType === "quote" && (values.generationMode === "order" || values.generationMode === "all") && !selectedOrderTemplateId) return appMessage.error("请先选择收发委托单模板");
+      if ((selectedSourceType === "quote" || selectedSourceType === "import") && (values.generationMode === "order" || values.generationMode === "all") && !selectedOrderTemplateId) return appMessage.error("请先选择收发委托单模板");
       setProcessing(true);
       const data = new FormData();
       if (!sourceFile.originFileObj) throw new Error("待处理文件无效，请重新选择");
@@ -318,7 +368,7 @@ const OneClickTransferPage: React.FC = () => {
       setModalOpen(false);
       setActiveTab("completed");
       await load();
-      setSelectedTask(response.data?.task);
+      setSelectedTask(null);
     } catch (error: any) {
       appMessage.error(error.message || "处理失败");
     } finally {
@@ -423,164 +473,127 @@ const OneClickTransferPage: React.FC = () => {
   void processingPanel;
   const completedTasks = tasks.filter((task) => task.status === "completed");
   const completedPanel = (
-    <div className="transfer-completed">
+    <div className={`transfer-completed ${completedTasks.length ? "has-tasks" : "is-empty"}`}>
+      <div className="completed-intro">
+        <div>
+          <span className="completed-kicker">TRANSFER RESULTS</span>
+          <h2>已完成的转送</h2>
+          <p>按任务查看转送对象、模板文件和处理结果。</p>
+        </div>
+        <div className="completed-intro-note"><CheckCircleOutlined /> 结果已生成，可直接下载</div>
+      </div>
       <Row className="transfer-completed-summary" gutter={[12, 12]}>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic title="已完成任务" value={completedTasks.length} />
-          </Card>
+          <Card className="completed-stat completed-stat-success"><Statistic title="已完成任务" value={completedTasks.length} prefix={<CheckCircleOutlined />} /></Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="累计生成文件"
-              value={completedTasks.reduce(
-                (sum, task) => sum + (task.files?.length || 0),
-                0,
-              )}
-            />
-          </Card>
+          <Card className="completed-stat completed-stat-files"><Statistic title="累计生成文件" value={completedTasks.reduce((sum, task) => sum + (task.files?.length || 0), 0)} prefix={<FolderOpenOutlined />} /></Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="累计跳过行"
-              value={completedTasks.reduce(
-                (sum, task) => sum + (task.skipped_rows || 0),
-                0,
-              )}
-            />
-          </Card>
+          <Card className="completed-stat completed-stat-skipped"><Statistic title="累计跳过行" value={completedTasks.reduce((sum, task) => sum + (task.skipped_rows ?? task.skippedRows ?? 0), 0)} prefix={<ArrowRightOutlined />} /></Card>
         </Col>
       </Row>
-      {completedTasks.map((task) => (
-        <Card
-          key={task.id}
-          className="task-card"
-          title={`${task.folder_name} · ${task.source_filename}`}
-          extra={(() => {
-            const taskFiles = Array.isArray(task.files) ? task.files : [];
-            const importFile = taskFiles.find((file: any) => file.match_keyword === "导入格式");
-            const orderFile = taskFiles.find((file: any) => file.match_keyword === "收发委托单");
-            return (
-            <Space wrap className="task-card-actions">
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void download(
-                    `/one-click-transfer/tasks/${task.id}/download`,
-                    `${task.folder_name}.zip`,
-                  );
-                }}
-              >
-                下载文件夹
-              </Button>
-              {importFile && (
-                <Button
-                  icon={<DownloadOutlined />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void download(
-                      `/one-click-transfer/files/${importFile.id}/download`,
-                      importFile.filename || "导入格式.xlsx",
-                    );
-                  }}
-                >
-                  下载导入格式
-                </Button>
-              )}
-              {orderFile && (
-                <Button
-                  icon={<DownloadOutlined />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void download(
-                      `/one-click-transfer/files/${orderFile.id}/download`,
-                      orderFile.filename || "收发委托单.xlsx",
-                    );
-                  }}
-                >
-                  下载收发委托单
-                </Button>
-              )}
-              <Popconfirm
-                title="确认删除此任务？"
-                onConfirm={() => deleteTask(task)}
-              >
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  删除
-                </Button>
-              </Popconfirm>
-            </Space>
-            );
-          })()}
-          onClick={() => {
-            setSelectedTask(task);
-            setSelectedCategory(task.files?.[0]?.match_keyword || "");
-          }}
-        >
-          <Space wrap>
-            {(task.files || []).map((file: any) => (
-              <Tag key={file.id}>
-                {file.match_keyword} · {file.row_count} 行
-              </Tag>
-            ))}
-          </Space>
-          {selectedTask?.id === task.id && (
-            <div
-              className="category-area"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <Segmented
-                className="transfer-category-selector"
-                options={task.files.map((file: any) => file.match_keyword)}
-                value={selectedCategory}
-                onChange={(value) => setSelectedCategory(String(value))}
-                block
-              />
-              <Space className="category-download">
-                <Button
-                  icon={<DownloadOutlined />}
-                  onClick={() =>
-                    download(
-                      `/one-click-transfer/tasks/${task.id}/categories/${encodeURIComponent(selectedCategory)}/download`,
-                      // A category currently produces one Excel file. Reuse the
-                      // generated filename so the Blob is not mislabeled as a ZIP.
-                      task.files.find(
-                        (file: any) => file.match_keyword === selectedCategory,
-                      )?.filename || `${selectedCategory}.xlsx`,
-                    )
-                  }
-                >
-                  下载该分类文件
-                </Button>
-              </Space>
-              <Table
-                className="transfer-preview-table"
-                size="small"
-                rowKey={(_, index) => `${selectedCategory}-${index}`}
-                pagination={false}
-                scroll={{ x: 900 }}
-                dataSource={getPreviewRows(task.files.find(
-                  (file: any) => file.match_keyword === selectedCategory,
-                ))}
-                columns={taskPreviewColumns.map((title) => ({
-                  title,
-                  dataIndex: title,
-                  key: title,
-                  align: "center" as const,
-                  ellipsis: true,
-                }))}
-              />
-            </div>
-          )}
+      {completedTasks.length === 0 && (
+        <Card className="completed-no-results">
+          <img className="completed-no-results-illustration" src="/one-click-transfer-empty-state.png" alt="数据转送完成示意图" />
+          <h3>完成的结果会出现在这里</h3>
+          <p>处理任务后，你可以在这里按转送对象查看并下载生成文件。</p>
         </Card>
-      ))}
+      )}
+      {completedTasks.map((task) => {
+        const taskFiles = Array.isArray(task.files) ? task.files : [];
+        const fileGroups = groupTransferFiles(taskFiles);
+        const totalRows = task.total_rows ?? task.totalRows ?? 0;
+        const matchedRows = task.matched_rows ?? task.matchedRows ?? 0;
+        const skippedRows = task.skipped_rows ?? task.skippedRows ?? 0;
+        const completedAt = task.completed_at || task.completedAt || task.created_at;
+        const selectedFile = taskFiles.find((file: any) => file.match_keyword === selectedCategory) || taskFiles[0];
+        return (
+          <Card
+            key={task.id}
+            className={`task-card ${selectedTask?.id === task.id ? "is-expanded" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-expanded={selectedTask?.id === task.id}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                const collapsing = selectedTask?.id === task.id;
+                setSelectedTask(collapsing ? null : task);
+                if (!collapsing) setSelectedCategory(taskFiles[0]?.match_keyword || "");
+              }
+            }}
+            title={undefined}
+            extra={
+              <Space wrap className="task-card-actions">
+                <Button type="primary" icon={<DownloadOutlined />} onClick={(event) => { event.stopPropagation(); void download(`/one-click-transfer/tasks/${task.id}/download`, taskArchiveName(task)); }}>
+                  下载全部文件
+                </Button>
+                <Popconfirm title="确认删除此任务？" onConfirm={() => deleteTask(task)}>
+                  <Button danger icon={<DeleteOutlined />} onClick={(event) => event.stopPropagation()}>删除</Button>
+                </Popconfirm>
+              </Space>
+            }
+            onClick={() => {
+              const collapsing = selectedTask?.id === task.id;
+              setSelectedTask(collapsing ? null : task);
+              if (!collapsing) setSelectedCategory(taskFiles[0]?.match_keyword || "");
+            }}
+          >
+            <div className="task-card-title-row">
+              <div className="task-card-title-wrap">
+                <span className="task-status-pill"><CheckCircleOutlined /> 已完成</span>
+                <h3 title={task.source_filename || task.folder_name}>{task.folder_name || "转送任务"}</h3>
+                <p className="task-source-file"><FileExcelOutlined /> {task.source_filename || "未命名源文件"}</p>
+              </div>
+              <span className="task-expand-hint">{selectedTask?.id === task.id ? "收起详情" : "查看详情"} <ArrowRightOutlined /></span>
+            </div>
+            <div className="task-meta-row">
+              <span>总行数 <b>{totalRows}</b></span>
+              <span>已匹配 <b className="is-success">{matchedRows}</b></span>
+              <span>已跳过 <b className="is-warning">{skippedRows}</b></span>
+              {completedAt && <span className="task-completed-at">完成于 {dayjs(completedAt).format("YYYY-MM-DD HH:mm")}</span>}
+            </div>
+            <div className="task-output-heading"><span>生成文件</span><span>{taskFiles.length} 个文件 · {fileGroups.length} 个模板组</span></div>
+            {selectedTask?.id === task.id && <>
+            <div className="task-output-groups">
+              {fileGroups.map((group) => (
+                <section className="task-output-group" key={group.name}>
+                  <div className="task-output-group-heading"><span>{group.name}</span><small>{group.files.length} 个文件</small></div>
+                  <div className="task-file-list">
+                    {group.files.map((file: any) => (
+                      <div className={`task-file-row ${selectedTask?.id === task.id && selectedFile?.id === file.id ? "is-selected" : ""}`} key={file.id}>
+                        <span className="task-file-icon"><FileExcelOutlined /></span>
+                        <div className="task-file-main">
+                          <strong title={file.template_item_name || file.template_name || file.match_keyword}>{file.template_item_name || file.template_name || file.match_keyword || "生成文件"}</strong>
+                          <span title={file.filename}>{file.filename || "未命名文件.xlsx"}</span>
+                          <small><Tag>{file.match_keyword || "转送对象"}</Tag><em>{file.row_count ?? file.rowCount ?? 0} 行</em></small>
+                        </div>
+                        <div className="task-file-actions">
+                          <Button type="link" onClick={(event) => { event.stopPropagation(); setSelectedTask(task); setSelectedCategory(file.match_keyword || ""); }}>预览</Button>
+                          <Button icon={<DownloadOutlined />} aria-label={`下载${file.filename || "当前文件"}`} onClick={(event) => { event.stopPropagation(); void download(`/one-click-transfer/files/${file.id}/download`, file.filename || "转送文件.xlsx"); }}>下载</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+            </>}
+            {(() => { const details = getSkipDetails(task); return (details.excluded.length || details.unmatched) ? <div className="task-skip-details"><span>已跳过</span>{details.excluded.map((item) => <span key={item.keyword}>排除项 {item.keyword}：{item.count} 行</span>)}{details.unmatched > 0 && <span>未匹配到转送对象：{details.unmatched} 行</span>}</div> : null; })()}
+            {selectedTask?.id === task.id && (
+              <div className="category-area" onClick={(event) => event.stopPropagation()}>
+                <div className="category-area-header">
+                  <div><strong>文件预览</strong><span>选择文件查看生成结果</span></div>
+                  <Button icon={<DownloadOutlined />} onClick={() => download(`/one-click-transfer/tasks/${task.id}/categories/${encodeURIComponent(selectedCategory)}/download`, selectedFile?.filename || `${selectedCategory || "转送文件"}.xlsx`)}>下载当前文件</Button>
+                </div>
+                <Segmented className="transfer-category-selector" options={taskFiles.map((file: any) => ({ label: `${file.template_item_name || file.match_keyword} · ${file.row_count ?? file.rowCount ?? 0} 行`, value: file.match_keyword }))} value={selectedCategory} onChange={(value) => setSelectedCategory(String(value))} block />
+                <Table className="transfer-preview-table" size="small" rowKey={(_, index) => `${selectedCategory}-${index}`} pagination={false} scroll={{ x: 1040 }} locale={{ emptyText: "当前文件暂无预览数据" }} dataSource={getPreviewRows(selectedFile)} columns={taskPreviewColumns.map((title) => ({ title, dataIndex: title, key: title, align: "center" as const, ellipsis: { showTitle: true } }))} />
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
   const settingsPanel = (
@@ -598,6 +611,11 @@ const OneClickTransferPage: React.FC = () => {
            key: "mappings",
            label: "映射关系",
            children: <UnifiedMappingSettings config={config} reload={load} />,
+         },
+         {
+           key: "monitoring",
+           label: <span>运行监控{config.monitoring?.summary?.error > 0 ? <Tag color="error">{config.monitoring.summary.error}</Tag> : null}</span>,
+           children: <TransferMonitoringPanel monitoring={config.monitoring} onRefresh={load} refreshing={refreshing} />,
          },
         {
           key: "general",
@@ -627,6 +645,20 @@ const OneClickTransferPage: React.FC = () => {
           <p>按模板组和模板项及匹配列批量生成转送对象文件</p>
         </div>
         <div className="transfer-header-actions">
+          <PermissionGuard permission="system:audit:export">
+            <Input
+              className="diagnostic-request-id"
+              placeholder="Request ID（可选）"
+              value={diagnosticRequestId}
+              onChange={(event) => setDiagnosticRequestId(event.target.value)}
+              allowClear
+            />
+            <Tooltip title="下载诊断日志包，可按 Request ID 精确筛选">
+              <Button icon={<DownloadOutlined />} onClick={() => void downloadDiagnosticBundle()}>
+                下载诊断包
+              </Button>
+            </Tooltip>
+          </PermissionGuard>
           <span className="transfer-last-updated">
             {lastUpdatedAt ? `上次更新于 ${lastUpdatedAt.format("HH:mm:ss")}` : "正在加载数据"}
           </span>
@@ -728,15 +760,15 @@ const OneClickTransferPage: React.FC = () => {
           ) : (
             <Form form={form} layout="vertical">
               <Form.Item name="sourceType" label="上传文件类型" initialValue="quote">
-                <Radio.Group value={sourceType} onChange={(event) => { const value = event.target.value; setSourceType(value); setHeaders([]); setSourceFile(null); const defaultMode = value === "quote" ? "all" : "target"; setGenerationMode(defaultMode); form.setFieldsValue({ sourceType: value, generationMode: defaultMode }); }} options={[{ label: "报价单", value: "quote" }, { label: "导入格式", value: "import" }, { label: "收发委托单", value: "order" }]} />
+                <Radio.Group value={sourceType} onChange={(event) => { const value = event.target.value; setSourceType(value); setHeaders([]); setSourceFile(null); setSourceDetection(null); const defaultMode = value === "quote" ? "all" : "target"; setGenerationMode(defaultMode); form.setFieldsValue({ sourceType: value, generationMode: defaultMode }); }} options={[{ label: "报价单", value: "quote" }, { label: "导入格式", value: "import" }, { label: "收发委托单", value: "order" }]} />
               </Form.Item>
               {sourceType === "quote" && <Form.Item name="quoteTemplateId" label="报价单模板项" rules={[{ required: true, message: "请选择报价单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择报价单模板项" options={(config.quoteTemplates || []).map((item: QuoteTemplate) => ({ label: templateLabel(item, "报价单模板"), value: item.id }))} onChange={(value) => { setQuoteTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
               {sourceType === "import" && <Form.Item name="importTemplateId" label="导入格式模板项" rules={[{ required: true, message: "请选择导入格式模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} onChange={(value) => { setImportTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
               {sourceType === "order" && <Form.Item name="orderTemplateId" label="收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={(value) => { setOrderTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
               {sourceType === "quote" && generationMode === "import" && <Form.Item name="importTemplateId" label="生成所用导入格式模板项" rules={[{ required: true, message: "请选择导入格式模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} onChange={setImportTemplateId} /></Form.Item>}
-              {sourceType === "quote" && (generationMode === "order" || generationMode === "all") && <Form.Item name="orderTemplateId" label="生成所用收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={setOrderTemplateId} /></Form.Item>}
+              {(sourceType === "quote" || sourceType === "import") && (generationMode === "order" || generationMode === "all") && <Form.Item name="orderTemplateId" label="生成所用收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={setOrderTemplateId} /></Form.Item>}
               <Form.Item name="generationMode" label="生成内容" initialValue={sourceType === "quote" ? "all" : "target"}>
-                <Radio.Group value={generationMode} onChange={(event) => { const value = event.target.value; setGenerationMode(value); form.setFieldsValue({ generationMode: value }); if (value === "import") { setOrderTemplateId(undefined); form.setFieldsValue({ orderTemplateId: undefined }); } }} options={sourceType === "quote" ? [{ label: "生成导入格式", value: "import" }, { label: "生成收发委托单", value: "order" }, { label: "生成收发委托单和转送表", value: "all" }] : [{ label: "生成转送表", value: "target" }]} />
+                <Radio.Group value={generationMode} onChange={(event) => { const value = event.target.value; setGenerationMode(value); form.setFieldsValue({ generationMode: value }); if (value === "import" || value === "target") { setOrderTemplateId(undefined); form.setFieldsValue({ orderTemplateId: undefined }); } }} options={sourceType === "quote" ? [{ label: "生成导入格式", value: "import" }, { label: "生成收发委托单", value: "order" }, { label: "生成收发委托单和转送表", value: "all" }] : sourceType === "import" ? [{ label: "生成转送表", value: "target" }, { label: "生成收发委托单", value: "order" }, { label: "生成收发委托单和转送表", value: "all" }] : [{ label: "生成转送表", value: "target" }]} />
               </Form.Item>
               <Form.Item label="上传Excel文件" required>
                 {isMobile ? (
@@ -777,6 +809,7 @@ const OneClickTransferPage: React.FC = () => {
                     <p>点击或拖拽上传Excel</p>
                   </Upload.Dragger>
                 )}
+                {sourceDetection && <div className={`transfer-source-detection is-${sourceDetection.status}`} role={sourceDetection.status === "error" ? "alert" : "status"}>{sourceDetection.message}</div>}
               </Form.Item>
               <Space>
                 <Button onClick={() => setStep(0)}>上一步</Button>
@@ -827,7 +860,7 @@ const LegacyTemplateSettings = ({ config, reload }: any) => {
       data.append(key, String(value ?? "")),
     );
     data.append("file", uploadFile);
-    await apiClient.upload("/one-click-transfer/upload-templates", data);
+    await apiClient.upload("/one-click-transfer/upload-templates", data, { timeout: 120000 });
     await reload();
     uploadForm.resetFields();
     setUploadFile(undefined);
@@ -840,7 +873,7 @@ const LegacyTemplateSettings = ({ config, reload }: any) => {
       data.append(key, String(value ?? "")),
     );
     data.append("file", targetFile);
-    await apiClient.upload("/one-click-transfer/target-templates", data);
+    await apiClient.upload("/one-click-transfer/target-templates", data, { timeout: 120000 });
     await reload();
     targetForm.resetFields();
     setTargetFile(undefined);
@@ -1054,6 +1087,7 @@ const LegacyTemplateSettingsManager = ({ config, reload }: any) => {
     targetForm.setFieldsValue({
       templateItemName: row.template_item_name || row.name,
       matchKeyword: row.match_keyword,
+      excludeKeyword: row.exclude_keyword || "A,华屹,A（不带标）",
       headerRow: row.header_row,
       dataStartRow: row.data_start_row,
     });
@@ -1222,15 +1256,22 @@ const QuoteTemplateSettings = ({ config, reload }: any) => {
   const [form] = Form.useForm();
   const [file, setFile] = useState<File>();
   const [editing, setEditing] = useState<any>();
+  const [saving, setSaving] = useState(false);
   const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
     const values = await form.validateFields();
     if (!file && !editing?.file_path) throw new Error("请选择报价单模板文件");
     const data = new FormData(); Object.entries(values).forEach(([key, value]) => data.append(key, String(value ?? "")));
     data.set("templateGroupName", TEMPLATE_GROUP_NAMES.quote);
     if (editing?.id) data.append("id", editing.id); if (file) data.append("file", file);
-    await apiClient.upload("/one-click-transfer/quote-templates", data); await reload();
+    await apiClient.upload("/one-click-transfer/quote-templates", data, { timeout: 120000 }); await reload();
     form.resetFields(); setFile(undefined); setEditing(undefined);
     message.success("模板保存完成");
+    } finally {
+      setSaving(false);
+    }
   };
   const edit = (row: any) => { setEditing(row); form.setFieldsValue({ templateItemName: row.template_item_name || row.name, headerRow: row.header_row, dataStartRow: row.data_start_row }); };
   const remove = async (row: any) => { await apiClient.delete(`/one-click-transfer/quote-templates/${row.id}`); await reload(); };
@@ -1242,7 +1283,7 @@ const QuoteTemplateSettings = ({ config, reload }: any) => {
        <div className="transfer-template-spacer" aria-hidden="true" />
         <Upload beforeUpload={async (next) => { setFile(await snapshotUploadFile(next)); message.success("Excel 文件上传成功"); return false; }} maxCount={1} accept=".xlsx,.xls"><Button icon={<PlusOutlined />}>选择报价单文件</Button></Upload>
        <div className="transfer-template-current-file">{editing && !file ? `当前文件：${editing.file_name}` : ""}</div>
-       <Space className="transfer-template-actions"><Button type="primary" onClick={() => void save().catch((error: any) => message.error(error?.message || "模板保存失败"))}>保存</Button>{editing && <Button onClick={() => { setEditing(undefined); setFile(undefined); form.resetFields(); }}>取消</Button>}</Space>
+       <Space className="transfer-template-actions"><Button type="primary" loading={saving} onClick={() => void save().catch((error: any) => message.error(error?.message || "模板保存失败"))}>保存</Button>{editing && <Button disabled={saving} onClick={() => { setEditing(undefined); setFile(undefined); form.resetFields(); }}>取消</Button>}</Space>
     </Form>
      <Table size="small" pagination={false} rowKey="id" dataSource={config.quoteTemplates || []} columns={[{ title: "模板组名称", dataIndex: "template_group_name" }, { title: "模板项名称", dataIndex: "template_item_name" }, { title: "表头行", dataIndex: "header_row" }, { title: "文件", dataIndex: "file_name" }, { title: "操作", render: (_: any, row: any) => <Space><Button type="link" onClick={() => edit(row)}>修改</Button><Popconfirm title="确定要删除这个模板吗？" okText="确定" cancelText="取消" onConfirm={() => void remove(row).catch((error: any) => message.error(error?.message || "模板删除失败"))}><Button type="link" danger>删除</Button></Popconfirm></Space> }]} />
   </Card>;
@@ -1254,12 +1295,16 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
   const [file, setFile] = useState<File>();
   const [headers, setHeaders] = useState<string[]>([]);
   const [editing, setEditing] = useState<any>();
+  const [saving, setSaving] = useState(false);
   const readHeaders = async (next: File, headerRow = 1) => {
     const workbook = (await import("xlsx")).read(new Uint8Array(await next.arrayBuffer()), { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     return (await import("xlsx")).utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" })[Math.max(0, headerRow - 1)]?.map((value: any) => String(value).trim()).filter(Boolean) || [];
   };
   const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
     if (form.getFieldValue("matchColumnEnabled") === false) form.setFieldsValue({ matchColumn: "disabled" });
     const values = await form.validateFields();
     if (!file && !editing?.file_path) throw new Error("请选择导入格式文件");
@@ -1268,10 +1313,13 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
     Object.entries(values).forEach(([key, value]) => data.append(key, String(value ?? "")));
     if (editing?.id) data.append("id", editing.id);
     if (file) data.append("file", file);
-    await apiClient.upload("/one-click-transfer/import-templates", data);
+    await apiClient.upload("/one-click-transfer/import-templates", data, { timeout: 120000 });
     await reload();
     form.resetFields(); setFile(undefined); setHeaders([]); setEditing(undefined);
     message.success("模板保存完成");
+    } finally {
+      setSaving(false);
+    }
   };
   const edit = (row: any) => { setEditing(row); setHeaders(row.headers || []); form.setFieldsValue({ templateItemName: row.template_item_name || row.name, headerRow: row.header_row, dataStartRow: row.data_start_row, matchColumn: row.match_column, matchColumnEnabled: row.match_column_enabled !== 0 }); };
   const remove = async (row: any) => { await apiClient.delete(`/one-click-transfer/import-templates/${row.id}`); await reload(); };
@@ -1301,7 +1349,7 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
          <Button icon={<PlusOutlined />}>选择导入格式文件</Button>
        </Upload>
        <div className="transfer-template-current-file">{editing && !file ? `当前文件：${editing.file_name}` : ""}</div>
-       <Space className="transfer-template-actions"><Button type="primary" onClick={() => void save().catch((error: any) => message.error(error?.message || "模板保存失败"))}>保存</Button>{editing && <Button onClick={() => { setEditing(undefined); setFile(undefined); form.resetFields(); }}>取消</Button>}</Space>
+       <Space className="transfer-template-actions"><Button type="primary" loading={saving} onClick={() => void save().catch((error: any) => message.error(error?.message || "模板保存失败"))}>保存</Button>{editing && <Button disabled={saving} onClick={() => { setEditing(undefined); setFile(undefined); form.resetFields(); }}>取消</Button>}</Space>
     </Form>
     <Table size="small" pagination={false} rowKey="id" dataSource={config.importTemplates || []} columns={[
       { title: "模板组名称", dataIndex: "template_group_name" }, { title: "模板项名称", dataIndex: "template_item_name" }, { title: "表头行", dataIndex: "header_row" }, { title: "数据起始行", dataIndex: "data_start_row" }, { title: "文件", dataIndex: "file_name" },
@@ -1436,6 +1484,85 @@ const QuoteMappingSettings = ({ config, reload, targetType: controlledTargetType
       : <QuoteOrderMappingSettings config={config} reload={reload} />}
   </div>;
 };
+const getSkipDetails = (task: any): { excluded: Array<{ keyword: string; count: number }>; unmatched: number } => {
+  try {
+    const parsed = JSON.parse(task?.skip_detail_json || task?.skipDetailJson || "{}");
+    const excluded = Array.isArray(parsed?.excluded) ? parsed.excluded : [];
+    const unmatched = Number(parsed?.unmatched || 0) || (!excluded.length ? Number(task?.skipped_rows ?? task?.skippedRows ?? 0) : 0);
+    return { excluded, unmatched };
+  } catch { return { excluded: [], unmatched: 0 }; }
+};
+const groupTransferFiles = (files: any[]) => {
+  const groups = new Map<string, any[]>();
+  files.forEach((file) => {
+    const groupName = file.template_group_name || file.templateGroupName || (file.fileType === "target" ? "转送对象模板组" : "生成文件");
+    const existing = groups.get(groupName) || [];
+    existing.push(file);
+    groups.set(groupName, existing);
+  });
+  return Array.from(groups.entries()).map(([name, groupFiles]) => ({ name, files: groupFiles }));
+};
+
+const taskArchiveName = (task: any) => {
+  const files = Array.isArray(task?.files) ? task.files : [];
+  const targetNames = [...new Set<string>(files.filter((file: any) => file.target_template_id).map((file: any) => file.template_item_name || file.template_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const otherNames = [...new Set(files.filter((file: any) => !file.target_template_id).map((file: any) => {
+    const group = String(file.template_group_name || file.template_item_name || "转送文件");
+    if (group.includes("导入格式")) return "导入格式";
+    if (group.includes("收发委托")) return "收发委托单";
+    return group.replace(/模板组?$/, "");
+  }))];
+  const suffix = (targetNames.length ? targetNames : otherNames).join("+") || "转送文件";
+  return `${task.certificate_unit || "未命名"}_${String(task.calibration_date || "").replace(/-/g, "")}_${suffix}.zip`;
+};
+
+const monitorStatus = (status: string) => status === "ok"
+  ? { color: "success", label: "正常" }
+  : status === "warning"
+    ? { color: "warning", label: "警告" }
+    : { color: "error", label: "异常" };
+
+const MonitorStatusTag = ({ status }: { status: string }) => {
+  const meta = monitorStatus(status);
+  return <Tag color={meta.color}>{meta.label}</Tag>;
+};
+
+const TransferMonitoringPanel = ({ monitoring, onRefresh, refreshing }: any) => {
+  const summary = monitoring?.summary || { ok: 0, warning: 0, error: 0 };
+  const issueText = (issues: string[]) => issues?.length ? issues.join("；") : "检查通过";
+  return <div className="transfer-monitoring" aria-live="polite">
+    <div className="transfer-monitoring-header">
+      <div><h2>配置运行监控</h2><p>检查模板文件、表头、匹配列、关键字冲突及字段映射完整性</p></div>
+      <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void onRefresh()}>重新检查</Button>
+    </div>
+    <div className="transfer-monitoring-summary" role="status" aria-atomic="true">
+      <Statistic title="正常" value={summary.ok} valueStyle={{ color: "#15803d" }} />
+      <Statistic title="警告" value={summary.warning} valueStyle={{ color: "#b45309" }} />
+      <Statistic title="异常" value={summary.error} valueStyle={{ color: "#b91c1c" }} />
+      <span>检查时间：{monitoring?.checkedAt ? dayjs(monitoring.checkedAt).format("YYYY-MM-DD HH:mm:ss") : "尚未检查"}</span>
+    </div>
+    <section className="transfer-monitoring-section">
+      <h3>模板项状态</h3>
+      <Table size="small" rowKey="id" pagination={false} scroll={{ x: 720 }} dataSource={monitoring?.templates || []} columns={[
+        { title: "模板组", dataIndex: "groupName", width: 160 },
+        { title: "模板项", dataIndex: "itemName", width: 180 },
+        { title: "状态", dataIndex: "status", width: 90, render: (status: string) => <MonitorStatusTag status={status} /> },
+        { title: "检查结果", dataIndex: "issues", render: issueText },
+      ]} />
+    </section>
+    <section className="transfer-monitoring-section">
+      <h3>映射关系状态</h3>
+      <Table size="small" rowKey="id" pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 900 }} dataSource={monitoring?.mappings || []} columns={[
+        { title: "关系", dataIndex: "relation", width: 220 },
+        { title: "源模板项", dataIndex: "sourceName", width: 160 },
+        { title: "目标模板项", dataIndex: "targetName", width: 160 },
+        { title: "映射数", dataIndex: "mappingCount", width: 80 },
+        { title: "状态", dataIndex: "status", width: 90, render: (status: string) => <MonitorStatusTag status={status} /> },
+        { title: "检查结果", dataIndex: "issues", render: issueText },
+      ]} />
+    </section>
+  </div>;
+};
 
 /** Unified mapping entry point. The target type determines which mapping model is edited. */
 const UnifiedMappingSettings = ({ config, reload }: any) => {
@@ -1454,9 +1581,8 @@ const UnifiedMappingSettings = ({ config, reload }: any) => {
   );
 };
 
-const TemplateAccordion = ({ title, count, defaultOpen = false, children, onSave, onEdit, onDelete }: any) => {
+const TemplateAccordion = ({ title, count, defaultOpen = false, children, onSave, onEdit, onDelete, onToggle }: any) => {
   const [open, setOpen] = useState(defaultOpen);
-  const [enabled, setEnabled] = useState(true);
   const rootRef = useRef<HTMLElement>(null);
   const handleEdit = () => {
     if (onEdit) return onEdit();
@@ -1473,10 +1599,10 @@ const TemplateAccordion = ({ title, count, defaultOpen = false, children, onSave
       </button>
       <div className="template-accordion-actions">
         <Button size="small" onClick={handleEdit}>编辑</Button>
-        <Popconfirm title="确定删除当前模板吗？" okText="确定" cancelText="取消" onConfirm={handleDelete}>
+        {onDelete && <Popconfirm title="确定删除当前模板吗？" okText="确定" cancelText="取消" onConfirm={handleDelete}>
           <Button size="small" danger>删除</Button>
-        </Popconfirm>
-        <span className="template-enable-label">启用</span><Switch size="small" checked={enabled} onChange={setEnabled} />
+        </Popconfirm>}
+        {onToggle && <><span className="template-enable-label">启用</span><Switch size="small" checked={onToggle.value} onChange={onToggle.onChange} /></>}
       </div>
     </div>
     {open && <div className="template-accordion-content">{children}</div>}
@@ -1723,6 +1849,9 @@ const TemplateSettingsManagerV2 = ({ config, reload }: any) => {
               initialValue={2}
             >
               <Input />
+            </Form.Item>
+            <Form.Item name="excludeKeyword" label="排除关键字" initialValue="A,华屹,A（不带标）" extra="这些值不会参与转送对象匹配，多个值用逗号分隔">
+              <Input placeholder="例如：A，华屹，A（不带标）" />
             </Form.Item>
             <Upload
               key={targetUploadKey}
@@ -2028,7 +2157,7 @@ const ModernMappingSettings = ({ config, reload }: any) => {
   const sourceType = groupKind(sourceGroup);
   const targetType = groupKind(targetGroup);
   const validTargetKinds: Record<Exclude<TemplateKind, "target">, TemplateKind[]> = {
-    quote: ["import", "order"],
+    quote: ["import", "order", "target"],
     import: ["order", "target"],
     order: ["target"],
   };

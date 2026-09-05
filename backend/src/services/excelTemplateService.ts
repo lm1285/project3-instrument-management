@@ -306,7 +306,7 @@ class ExcelTemplateService {
       );
     });
 
-    logAudit({
+    void logAudit({
       action: 'excel_template_updated',
       module: 'excel_template',
       target_id: input.id,
@@ -338,7 +338,7 @@ class ExcelTemplateService {
       ]
     );
 
-    logAudit({
+    void logAudit({
       action: 'excel_generation_created',
       module: 'excel_template',
       target_id: input.templateId,
@@ -408,7 +408,7 @@ class ExcelTemplateService {
       );
     });
 
-    logAudit({
+    void logAudit({
       action: 'excel_template_created',
       module: 'excel_template',
       target_id: id,

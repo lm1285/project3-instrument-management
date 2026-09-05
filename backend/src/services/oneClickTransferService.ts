@@ -12,7 +12,17 @@ const TASK_DIR = path.join(ROOT, 'tasks');
 for (const dir of [TEMPLATE_DIR, TASK_DIR]) fs.mkdirSync(dir, { recursive: true });
 
 type Row = any[];
-const PREVIEW_COLUMNS = ['仪器名称', '型号规格', '制造厂', '出厂编号', '管理编号', '测量范围'];
+const PREVIEW_COLUMNS = ['仪器名称', '型号规格', '制造厂', '出厂编号', '管理编号', '测量范围', '备注'];
+const previewColumnAliases = (column: string) => column === '备注' ? ['备注', '收件备注'] : [column];
+const previewHeaderIndex = (headers: string[], column: string) => previewColumnAliases(column)
+  .map((alias) => headers.indexOf(alias))
+  .find((index) => index >= 0) ?? -1;
+const buildPreviewRows = (headers: string[], rows: Row[]) => rows.map((row) => Object.fromEntries(
+  PREVIEW_COLUMNS.map((column) => {
+    const index = previewHeaderIndex(headers, column);
+    return [column, index >= 0 ? row[index] ?? '' : ''];
+  }),
+));
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 const safeName = (value: string) => String(value || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || '未命名';
@@ -22,6 +32,105 @@ const templateItem = (input: any, fallback = '') => String(input.templateItemNam
 const splitMatchKeywords = (value: unknown) => [...new Set(
   String(value || '').split(/[,，]/).map((item) => item.trim()).filter(Boolean),
 )];
+export const DEFAULT_EXCLUDED_MATCH_KEYWORDS = ['A', '华屹', 'A（不带标）'];
+export const normalizeExcludedKeyword = (value: unknown) => String(value ?? '')
+  .trim()
+  .normalize('NFKC')
+  .toUpperCase()
+  .replace(/\s+/g, '');
+const splitExcludedKeywords = (value: unknown) => [...new Set(
+  splitMatchKeywords(value).map(normalizeExcludedKeyword).filter(Boolean),
+)];
+export const normalizeMatchKeyword = (value: unknown) => String(value ?? '')
+  .normalize('NFKC')
+  .trim()
+  .toUpperCase()
+  .replace(/\s+/g, '')
+  .replace(/[()]/g, '')
+  .replace(/(?:不带标|带标)$/u, '');
+export const matchesTargetKeyword = (configured: unknown, actual: unknown) => {
+  const normalizedActual = normalizeMatchKeyword(actual);
+  return Boolean(normalizedActual) && splitMatchKeywords(configured)
+    .some((keyword) => normalizeMatchKeyword(keyword) === normalizedActual);
+};
+const isExcludedMatchValue = (target: any, actual: unknown) => {
+  const configured = splitExcludedKeywords(target?.exclude_keyword || target?.excludeKeyword);
+  const excluded = [...splitExcludedKeywords(DEFAULT_EXCLUDED_MATCH_KEYWORDS), ...configured];
+  const normalizedActual = normalizeExcludedKeyword(actual);
+  return Boolean(normalizedActual) && excluded.includes(normalizedActual);
+};
+const matchesTarget = (target: any, actual: unknown) => !isExcludedMatchValue(target, actual) && matchesTargetKeyword(target?.match_keyword, actual);
+const recordSkip = (details: { excluded: Map<string, number>; unmatched: number }, value: unknown, target?: any) => {
+  if (isExcludedMatchValue(target || { exclude_keyword: DEFAULT_EXCLUDED_MATCH_KEYWORDS.join(',') }, value)) {
+    const key = normalizeExcludedKeyword(value) || '空值';
+    details.excluded.set(key, (details.excluded.get(key) || 0) + 1);
+  } else details.unmatched += 1;
+};
+const serializeSkipDetails = (details: { excluded: Map<string, number>; unmatched: number }) => ({
+  excluded: Array.from(details.excluded.entries()).map(([keyword, count]) => ({ keyword, count })),
+  unmatched: details.unmatched,
+});
+const isMeaningfulMappedValue = (value: unknown) => {
+  const normalized = String(value ?? '').normalize('NFKC').trim();
+  return Boolean(normalized)
+    && !/^[\\/]+$/.test(normalized)
+    && !/^(?:N\/?A)$/i.test(normalized);
+};
+export const joinMappedValues = (values: unknown[]) => [...new Set(
+  values.filter(isMeaningfulMappedValue).map((value) => String(value).trim()),
+)].join('/');
+const targetOutputName = (target: any) => safeName(target?.template_item_name || target?.name || '转送对象');
+const normalizeHeader = (value: unknown) => String(value ?? '').normalize('NFKC').trim().toUpperCase();
+
+export type SourceDetectionCandidate = {
+  type: 'quote' | 'import' | 'order';
+  id: string;
+  groupName: string;
+  itemName: string;
+  headerRow: number;
+  headers: string[];
+};
+
+export function rankSourceTemplates(rows: Row[], candidates: SourceDetectionCandidate[]) {
+  return candidates.map((candidate) => {
+    const expected = [...new Set(candidate.headers.map(normalizeHeader).filter(Boolean))];
+    const actual = [...new Set((rows[Math.max(0, candidate.headerRow - 1)] || []).map(normalizeHeader).filter(Boolean))];
+    const matchedHeaders = expected.filter((header) => actual.includes(header));
+    const coverage = matchedHeaders.length / Math.max(expected.length, 1);
+    const precision = matchedHeaders.length / Math.max(actual.length, 1);
+    return {
+      ...candidate,
+      matchedHeaders,
+      detectedHeaders: actual,
+      matchedCount: matchedHeaders.length,
+      score: Number((coverage * 0.7 + precision * 0.3).toFixed(4)),
+    };
+  }).sort((a, b) => b.score - a.score || b.matchedCount - a.matchedCount);
+}
+
+export function mappingValidationIssues(sourceHeaders: string[], targetHeaders: string[], mappings: any[]) {
+  const issues: string[] = [];
+  if (!mappings.length) return ['未配置映射'];
+  for (const mapping of mappings) {
+    if (mapping.forced_key || mapping.forcedKey) {
+      const targetCell = mapping.target_cell || mapping.targetCell;
+      const targetColumn = mapping.target_column || mapping.targetColumn;
+      if (targetCell && !/^[A-Z]+\d+$/i.test(String(targetCell).trim())) issues.push(`固定单元格不存在：${targetCell}`);
+      if (!targetCell && targetColumn && !targetHeaders.includes(targetColumn)) issues.push(`目标字段不存在：${targetColumn}`);
+      continue;
+    }
+    const sourceColumn = mapping.source_column || mapping.sourceColumn;
+    const targetColumn = mapping.target_column || mapping.targetColumn;
+    if (!sourceColumn || !targetColumn) issues.push('存在未完成的字段映射');
+    else {
+      if (!sourceHeaders.includes(sourceColumn)) issues.push(`源字段不存在：${sourceColumn}`);
+      if (!targetHeaders.includes(targetColumn)) issues.push(`目标字段不存在：${targetColumn}`);
+    }
+  }
+  return [...new Set(issues)];
+}
+export const shouldUseDirectTargetMappings = (sourceTemplateType: string, mappings: any[]) =>
+  sourceTemplateType === 'quote' && mappings.length > 0;
 const parseJson = <T>(value: string | null | undefined, fallback: T): T => { try { return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } };
 // "检定日期" was used by earlier mapping screens. Treat it as the same
 // start-processing value as "校准日期" so existing mappings keep working.
@@ -63,6 +172,12 @@ function readRows(filePath: string, headerRow: number, dataStartRow: number) {
     }
   }
   return { workbook, sheet, rows, header, data };
+}
+
+function readBufferRows(buffer: Buffer): Row[] {
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: '', range: 0 });
 }
 
 function columnCountForHeader(header: string[]): number {
@@ -314,6 +429,50 @@ async function zipBuffers(entries: Array<{ name: string; data: Buffer }>) {
 class OneClickTransferService {
   private get db() { return dbConfig.getConnection(); }
 
+  async detectSourceFile(file: Express.Multer.File | Buffer) {
+    const buffer = Buffer.isBuffer(file) ? file : file.buffer;
+    const rows = readBufferRows(buffer);
+    const [quotes, imports, orders] = await Promise.all([
+      this.db.all<any[]>('SELECT * FROM transfer_quote_templates ORDER BY template_item_name'),
+      this.db.all<any[]>('SELECT * FROM transfer_import_templates ORDER BY template_item_name'),
+      this.db.all<any[]>('SELECT * FROM transfer_upload_templates ORDER BY template_item_name'),
+    ]);
+    const toCandidate = (type: SourceDetectionCandidate['type'], groupName: string, item: any): SourceDetectionCandidate | null => {
+      if (!item.file_path || !fs.existsSync(item.file_path) || (type === 'order' && isLegacyBusinessType(item.template_item_name || item.type_name))) return null;
+      const headers = readHeader(item.file_path, Number(item.header_row || 1), Number(item.data_start_row || 2)).filter(Boolean);
+      if (!headers.length) return null;
+      return { type, id: item.id, groupName, itemName: templateItem(item, item.template_name || item.type_name), headerRow: Number(item.header_row || 1), headers };
+    };
+    const candidates = [
+      ...quotes.map((item) => toCandidate('quote', '报价单模板组', item)),
+      ...imports.map((item) => toCandidate('import', '导入格式模板组', item)),
+      ...orders.map((item) => toCandidate('order', '收发委托模板组', item)),
+    ].filter((item): item is SourceDetectionCandidate => Boolean(item));
+    const ranked = rankSourceTemplates(rows, candidates);
+    const best = ranked[0];
+    const second = ranked[1];
+    const minimumMatches = best ? Math.min(3, Math.max(2, best.headers.length)) : 3;
+    const confident = Boolean(best && best.matchedCount >= minimumMatches && best.score >= 0.55 && (!second || best.score - second.score >= 0.08));
+    return {
+      best: best ? { ...best, confident } : null,
+      candidates: ranked.map((item) => ({ ...item, confident: item.id === best?.id && confident })),
+    };
+  }
+
+  private async validateSelectedSource(input: any, file: Express.Multer.File) {
+    const detected = await this.detectSourceFile(file);
+    const selectedType = String(input.sourceType || '');
+    const selectedId = String(input.sourceTemplateId || (selectedType === 'quote' ? input.quoteTemplateId : selectedType === 'import' ? input.importTemplateId : input.orderTemplateId) || '');
+    const selected = detected.candidates.find((item) => item.type === selectedType && item.id === selectedId);
+    const best = detected.best;
+    const selectedInvalid = !selected || selected.matchedCount < Math.min(3, Math.max(2, selected.headers.length)) || selected.score < 0.45;
+    if ((best?.confident && (best.type !== selectedType || best.id !== selectedId)) || selectedInvalid) {
+      const suggestion = best?.confident ? ` 系统识别为“${best.groupName} / ${best.itemName}”。` : '';
+      throw new Error(`选择的上传文件类型或模板项错误，请检查勾选的上传文件类型、模板项或 Excel 文件是否正确。${suggestion}`.trim());
+    }
+    return detected;
+  }
+
   /** Use source-specific mappings as an override of global mappings. */
   private async getTargetMappings(targetTemplateId: string, sourceTemplateId: string) {
     const specific = await this.db.all<any[]>(
@@ -348,8 +507,8 @@ class OneClickTransferService {
       const mappings = await this.db.all<any[]>('SELECT source_column,target_column FROM transfer_mappings WHERE target_template_id = ? AND (forced_key IS NULL OR forced_key = \'\')', [file.target_template_id]);
 
       return generated.data.slice(0, Number(file.row_count || generated.data.length)).map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => {
-        const targetColumn = mappings.find((mapping) => mapping.source_column === column)?.target_column || column;
-        const targetIndex = generated.header.indexOf(targetColumn);
+        const targetColumn = mappings.find((mapping) => previewColumnAliases(column).includes(String(mapping.source_column || '').trim()))?.target_column || column;
+        const targetIndex = previewHeaderIndex(generated.header, targetColumn === '收件备注' ? '备注' : targetColumn);
         return [column, targetIndex >= 0 ? row[targetIndex] ?? '' : ''];
       })));
     } catch {
@@ -398,7 +557,6 @@ class OneClickTransferService {
       await fs.promises.writeFile(filePath, file.buffer);
     }
     if (!filePath) throw new Error('请上传导入格式 Excel 文件');
-    readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2));
     const header = readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2)).header;
     const matchColumnEnabled = String(input.matchColumnEnabled ?? 'true') !== 'false' ? 1 : 0;
     if (matchColumnEnabled && (!input.matchColumn || !header.includes(input.matchColumn))) throw new Error('导入格式的匹配列不存在');
@@ -423,7 +581,6 @@ class OneClickTransferService {
       await fs.promises.writeFile(filePath, file.buffer);
     }
     if (!filePath) throw new Error('请上传报价单模板文件');
-    readRows(filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2));
     await this.db.run(`INSERT INTO transfer_quote_templates(id,name,template_group_name,template_item_name,file_path,file_name,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,file_path=excluded.file_path,file_name=excluded.file_name,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`, [templateId, itemName, groupName, itemName, filePath, fileName, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp]);
     return { id: templateId, fileName };
   }
@@ -458,7 +615,99 @@ class OneClickTransferService {
     const quoteMappings = await this.db.all<any[]>('SELECT * FROM transfer_quote_mappings ORDER BY rowid');
     const quoteOrderMappings = await this.db.all<any[]>('SELECT * FROM transfer_quote_order_mappings ORDER BY rowid');
     const normalizeMapping = (row: any) => ({ ...row, sourceColumn: row.source_column || '', targetColumn: row.target_column || '', forcedKey: row.forced_key || undefined, targetCell: row.target_cell || '' });
-    return { uploadTemplates: uploads, orderTemplates: uploads, importTemplates: imports, quoteTemplates: quotes, importMappings: importMappings.map(normalizeMapping), quoteMappings: quoteMappings.map(normalizeMapping), quoteOrderMappings: quoteOrderMappings.map(normalizeMapping), targetTemplates: targets, settings: Object.fromEntries((settings as any[]).map((item) => [item.key, parseJson(item.value, item.value)])) };
+    const allTemplates = [
+      ...quotes.map((item) => ({ ...item, monitorKind: 'quote', monitorGroup: '报价单模板组' })),
+      ...imports.map((item) => ({ ...item, monitorKind: 'import', monitorGroup: '导入格式模板组' })),
+      ...uploads.map((item) => ({ ...item, monitorKind: 'order', monitorGroup: '收发委托模板组' })),
+      ...targets.map((item) => ({ ...item, monitorKind: 'target', monitorGroup: '转送对象模板组' })),
+    ];
+    const keywordOwners = new Map<string, Set<string>>();
+    for (const target of targets) {
+      for (const keyword of splitMatchKeywords(target.match_keyword)) {
+        const normalized = normalizeMatchKeyword(keyword);
+        if (!normalized) continue;
+        const owners = keywordOwners.get(normalized) || new Set<string>();
+        owners.add(target.id);
+        keywordOwners.set(normalized, owners);
+      }
+    }
+    const templateHealth = allTemplates.map((item: any) => {
+      const issues: string[] = [];
+      const warnings: string[] = [];
+      if (!item.file_path || !fs.existsSync(item.file_path)) issues.push('模板文件不存在，请重新上传');
+      if (!item.headers?.length) issues.push('未读取到表头');
+      if (Number(item.header_row) < 1 || Number(item.data_start_row) <= Number(item.header_row)) issues.push('表头行或数据起始行配置无效');
+      if (['import', 'order'].includes(item.monitorKind) && item.match_column_enabled !== 0) {
+        if (!item.match_column) issues.push('未配置转送匹配列');
+        else if (item.headers?.length && !item.headers.includes(item.match_column)) issues.push(`匹配列“${item.match_column}”不在表头中`);
+      }
+      if (item.monitorKind === 'target') {
+        const keywords = splitMatchKeywords(item.match_keyword);
+        if (!keywords.length) issues.push('未配置匹配关键字');
+        const conflicts = keywords.filter((keyword) => (keywordOwners.get(normalizeMatchKeyword(keyword))?.size || 0) > 1);
+        if (conflicts.length) issues.push(`关键字与其他模板冲突：${[...new Set(conflicts)].join('、')}`);
+      }
+      return {
+        id: item.id,
+        kind: item.monitorKind,
+        groupName: item.monitorGroup,
+        itemName: templateItem(item, item.template_name || item.type_name),
+        status: issues.length ? 'error' : warnings.length ? 'warning' : 'ok',
+        issues: [...issues, ...warnings],
+      };
+    });
+    const inspectMappings = (relation: string, source: any, target: any, rows: any[], fallback = false) => {
+      const issues: string[] = [];
+      const warnings: string[] = [];
+      if (!rows.length) issues.push('未配置映射');
+      if (!source.headers.length) issues.push('源模板不可用或未读取到表头');
+      if (!target.headers.length) issues.push('目标模板不可用或未读取到表头');
+      for (const row of rows) {
+        if (row.forced_key) {
+          if (row.target_cell && !/^[A-Z]+\d+$/i.test(String(row.target_cell).trim())) issues.push(`固定单元格“${row.target_cell}”无效`);
+          if (!row.target_cell && row.target_column && target.headers.length && !target.headers.includes(row.target_column)) issues.push(`目标字段不存在：${row.target_column}`);
+          continue;
+        }
+        if (!row.source_column || !row.target_column) issues.push('存在未完成的字段映射');
+        else {
+          if (source.headers.length && !source.headers.includes(row.source_column)) issues.push(`源字段不存在：${row.source_column}`);
+          if (target.headers.length && !target.headers.includes(row.target_column)) issues.push(`目标字段不存在：${row.target_column}`);
+        }
+      }
+      if (fallback && rows.length) warnings.push('正在使用旧版通用映射，建议保存为源模板专属映射');
+      return {
+        id: `${relation}:${source.id}:${target.id}`,
+        relation,
+        sourceName: templateItem(source, source.template_name || source.type_name),
+        targetName: templateItem(target, target.template_name || target.type_name),
+        mappingCount: rows.length,
+        status: issues.length ? 'error' : warnings.length ? 'warning' : 'ok',
+        issues: [...new Set([...issues, ...warnings])],
+      };
+    };
+    const mappingHealth: any[] = [];
+    for (const quote of quotes) for (const importTemplate of imports) mappingHealth.push(inspectMappings('报价单 → 导入格式', quote, importTemplate, (quoteMappings as any[]).filter((row) => row.quote_template_id === quote.id && row.import_template_id === importTemplate.id)));
+    for (const quote of quotes) for (const order of uploads) mappingHealth.push(inspectMappings('报价单 → 收发委托单', quote, order, (quoteOrderMappings as any[]).filter((row) => row.quote_template_id === quote.id && row.order_template_id === order.id)));
+    for (const importTemplate of imports) for (const order of uploads) mappingHealth.push(inspectMappings('导入格式 → 收发委托单', importTemplate, order, (importMappings as any[]).filter((row) => row.import_template_id === importTemplate.id && row.order_template_id === order.id)));
+    for (const source of [...quotes, ...imports, ...uploads]) for (const target of targets) {
+      const specific = (mappingRows as any[]).filter((row) => row.target_template_id === target.id && row.upload_template_id === source.id);
+      const fallback = (mappingRows as any[]).filter((row) => row.target_template_id === target.id && !row.upload_template_id);
+      const canUseLegacyFallback = source.template_group_name !== '报价单模板组';
+      const effective = specific.length ? specific : canUseLegacyFallback ? fallback : [];
+      mappingHealth.push(inspectMappings(`${source.template_group_name} → 转送对象`, source, target, effective, canUseLegacyFallback && !specific.length && fallback.length > 0));
+    }
+    const monitoringItems = [...templateHealth, ...mappingHealth];
+    const monitoring = {
+      checkedAt: now(),
+      summary: {
+        ok: monitoringItems.filter((item) => item.status === 'ok').length,
+        warning: monitoringItems.filter((item) => item.status === 'warning').length,
+        error: monitoringItems.filter((item) => item.status === 'error').length,
+      },
+      templates: templateHealth,
+      mappings: mappingHealth,
+    };
+    return { uploadTemplates: uploads, orderTemplates: uploads, importTemplates: imports, quoteTemplates: quotes, importMappings: importMappings.map(normalizeMapping), quoteMappings: quoteMappings.map(normalizeMapping), quoteOrderMappings: quoteOrderMappings.map(normalizeMapping), targetTemplates: targets, monitoring, settings: Object.fromEntries((settings as any[]).map((item) => [item.key, parseJson(item.value, item.value)])) };
   }
 
   async saveImportMappings(importTemplateId: string, orderTemplateId: string, mappings: any[]) {
@@ -538,6 +787,12 @@ class OneClickTransferService {
     const templateId = input.id || id('target');
     const matchKeywords = splitMatchKeywords(input.matchKeyword);
     if (!matchKeywords.length) throw new Error('请至少填写一个匹配关键字');
+    const normalizedKeywords = new Set(matchKeywords.map(normalizeMatchKeyword).filter(Boolean));
+    const otherTargets = await this.db.all<any[]>('SELECT id,template_item_name,name,match_keyword FROM transfer_target_templates WHERE id <> ?', [templateId]);
+    for (const other of otherTargets) {
+      const conflicts = splitMatchKeywords(other.match_keyword).filter((keyword) => normalizedKeywords.has(normalizeMatchKeyword(keyword)));
+      if (conflicts.length) throw new Error(`匹配关键字与转送对象模板“${other.template_item_name || other.name}”冲突：${conflicts.join('、')}`);
+    }
 
     // Keep the file owned by this template. Do not trust a client-provided
     // path, since it can make different target templates point at one Excel.
@@ -555,8 +810,8 @@ class OneClickTransferService {
     const itemName = templateItem(input);
     if (!itemName) throw new Error('模板项名称不能为空');
     await this.db.run(
-      `INSERT INTO transfer_target_templates(id,name,template_group_name,template_item_name,match_keyword,file_path,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,match_keyword=excluded.match_keyword,file_path=excluded.file_path,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`,
-      [templateId, itemName, groupName, itemName, matchKeywords.join(','), filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp],
+      `INSERT INTO transfer_target_templates(id,name,template_group_name,template_item_name,match_keyword,exclude_keyword,file_path,header_row,data_start_row,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,template_group_name=excluded.template_group_name,template_item_name=excluded.template_item_name,match_keyword=excluded.match_keyword,exclude_keyword=excluded.exclude_keyword,file_path=excluded.file_path,header_row=excluded.header_row,data_start_row=excluded.data_start_row,updated_at=excluded.updated_at`,
+      [templateId, itemName, groupName, itemName, matchKeywords.join(','), splitExcludedKeywords(input.excludeKeyword || input.exclude_keyword).join(',') || splitExcludedKeywords(DEFAULT_EXCLUDED_MATCH_KEYWORDS).join(','), filePath, Number(input.headerRow || 1), Number(input.dataStartRow || 2), timestamp, timestamp],
     );
     return { id: templateId };
   }
@@ -569,7 +824,8 @@ class OneClickTransferService {
 
   async suggestMappings(uploadTemplateId: string, targetTemplateId: string) {
     const upload = await this.db.get<any>('SELECT * FROM transfer_upload_templates WHERE id = ?', [uploadTemplateId])
-      || await this.db.get<any>('SELECT * FROM transfer_import_templates WHERE id = ?', [uploadTemplateId]);
+      || await this.db.get<any>('SELECT * FROM transfer_import_templates WHERE id = ?', [uploadTemplateId])
+      || await this.db.get<any>('SELECT * FROM transfer_quote_templates WHERE id = ?', [uploadTemplateId]);
     const target = await this.db.get<any>('SELECT * FROM transfer_target_templates WHERE id = ?', [targetTemplateId]);
     if (!upload || !target) throw new Error('模板不存在');
     const headers = (item: any) => item.file_path && fs.existsSync(item.file_path) ? readRows(item.file_path, item.header_row, item.data_start_row).header.filter(Boolean) : [];
@@ -643,16 +899,17 @@ class OneClickTransferService {
           const anchor = mergedAnchor(importBook.sheet, outputRow, targetIndex); const address = XLSX.utils.encode_cell(anchor);
           const values = rowValues.get(address) || []; values.push(source.data[i][sourceIndex] ?? ''); rowValues.set(address, values);
         }
-        for (const [address, values] of rowValues) updates.set(address, values.filter((value) => String(value).trim() !== '').join('/'));
+        for (const [address, values] of rowValues) updates.set(address, joinMappedValues(values));
       }
       await writeTemplateText(importTemplate.file_path, generatedPath, updates);
       {
-        const taskId = id('task'); const folderName = `${safeName(calibrationDate).replace(/-/g, '')}_导入格式`; const folderPath = path.join(TASK_DIR, `${taskId}-${folderName}`);
+        const namePrefix = `${safeName(certificateUnit)}_${safeName(calibrationDate).replace(/-/g, '')}`;
+        const taskId = id('task'); const folderName = `${namePrefix}_导入格式`; const folderPath = path.join(TASK_DIR, `${taskId}-${folderName}`);
         await fs.promises.mkdir(folderPath, { recursive: true });
-        const filename = `${safeName(calibrationDate).replace(/-/g, '')}_导入格式.xlsx`; const outputPath = path.join(folderPath, filename);
+        const filename = `${namePrefix}_导入格式.xlsx`; const outputPath = path.join(folderPath, filename);
         await fs.promises.copyFile(generatedPath, outputPath); const size = (await fs.promises.stat(outputPath)).size;
         const generated = readRows(outputPath, importTemplate.header_row, importTemplate.data_start_row); generated.data = generated.data.slice(0, source.data.length);
-        const previewRows = generated.data.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = generated.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
+        const previewRows = buildPreviewRows(generated.header, generated.data);
         const fileId = id('file');
         await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, quote.template_item_name || quote.name, importTemplate.match_column || '导入格式', 'completed', source.data.length, source.data.length, 0, folderName, now(), now()]);
         await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, null, importTemplate.name, importTemplate.template_group_name || '导入格式模板', importTemplate.template_item_name || importTemplate.name, '导入格式', filename, outputPath, source.data.length, size, JSON.stringify(previewRows), now()]);
@@ -689,29 +946,34 @@ class OneClickTransferService {
       const source = readRows(sourcePath, Number(sourceTemplate.header_row || 1), Number(sourceTemplate.data_start_row || 2));
       const matchIndex = source.header.indexOf(matchColumn);
       if (matchIndex < 0) throw new Error(`上传文件缺少转送匹配列：${matchColumn}`);
-      const taskName = `${safeName(calibrationDate).replace(/-/g, '')}_${safeName(sourceTemplate.template_item_name || sourceTemplate.name || sourceTemplate.template_name || '转送')}`;
-      taskId = id('task');
-      folderPath = path.join(TASK_DIR, `${taskId}-${taskName}`);
-      await fs.promises.mkdir(folderPath, { recursive: true });
-      await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, sourceTemplate.template_item_name || sourceTemplate.name || sourceTemplate.template_name, matchColumn, 'processing', source.data.length, 0, 0, taskName, now()]);
       const targets = (await this.db.all<any[]>('SELECT * FROM transfer_target_templates')).filter((item) => !isLegacyBusinessType(item.name) && !isLegacyBusinessType(item.match_keyword));
       const groups = new Map<string, { rows: Row[]; matchedKeywords: Set<string> }>();
+      const skipDetails = { excluded: new Map<string, number>(), unmatched: 0 };
       let skipped = 0;
       for (const row of source.data) {
         const value = String(row[matchIndex] ?? '').trim();
-        const target = targets.find((item) => splitMatchKeywords(item.match_keyword).includes(value));
-        if (!target) { skipped += 1; continue; }
+        const configuredTarget = targets.find((item) => matchesTargetKeyword(item.match_keyword, value));
+        const target = targets.find((item) => matchesTarget(item, value));
+        if (!target) { skipped += 1; recordSkip(skipDetails, value, configuredTarget); continue; }
         const group = groups.get(target.id) || { rows: [], matchedKeywords: new Set<string>() };
         group.rows.push(row); group.matchedKeywords.add(value); groups.set(target.id, group);
       }
+      const matchedTargetNames = Array.from(groups.keys()).map((targetId) => targetOutputName(targets.find((item) => item.id === targetId))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+      const namePrefix = `${safeName(certificateUnit)}_${safeName(calibrationDate).replace(/-/g, '')}`;
+      const taskName = `${namePrefix}_${matchedTargetNames.join('+') || '未匹配'}`;
+      taskId = id('task');
+      folderPath = path.join(TASK_DIR, `${taskId}-${taskName}`);
+      await fs.promises.mkdir(folderPath, { recursive: true });
+      await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,skip_detail_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, sourceTemplate.template_item_name || sourceTemplate.name || sourceTemplate.template_name, matchColumn, 'processing', source.data.length, 0, 0, taskName, now(), JSON.stringify(serializeSkipDetails(skipDetails))]);
       const forced = { '证书单位': certificateUnit, '证书地址': certificateAddress, '校准日期': calibrationDate };
       const generated: any[] = [];
       for (const [targetId, group] of groups) {
         const target = targets.find((item) => item.id === targetId);
-        if (!target || !fs.existsSync(target.file_path)) continue;
+        if (!target || !target.file_path || !fs.existsSync(target.file_path)) throw new Error(`转送对象模板“${target?.template_item_name || target?.name || targetId}”文件不存在，请在运行监控中修复`);
         const targetBook = readRows(target.file_path, target.header_row, target.data_start_row);
         const mappings = await this.getTargetMappings(targetId, sourceTemplateId);
-        if (!mappings.length) throw new Error(`尚未配置“${sourceTemplate.name || sourceTemplate.template_name} → ${target.name}”的映射关系`);
+        const mappingIssues = mappingValidationIssues(source.header, targetBook.header, mappings);
+        if (mappingIssues.length) throw new Error(`“${sourceTemplate.name || sourceTemplate.template_name} → ${target.name}”映射不完整：${mappingIssues.join('、')}`);
         const updates = new Map<string, unknown>();
         for (const mapping of mappings.filter((item) => item.forced_key && item.target_cell)) {
           const cell = cellToAddress(mapping.target_cell); const anchor = mergedAnchor(targetBook.sheet, cell.r, cell.c);
@@ -729,16 +991,16 @@ class OneClickTransferService {
             const anchor = mergedAnchor(targetBook.sheet, outputRow, targetIndex); const address = XLSX.utils.encode_cell(anchor);
             const values = rowValues.get(address) || []; values.push(group.rows[i][sourceIndex] ?? ''); rowValues.set(address, values);
           }
-          for (const [address, values] of rowValues) updates.set(address, values.filter((value) => String(value).trim() !== '').join('/'));
+          for (const [address, values] of rowValues) updates.set(address, joinMappedValues(values));
         }
-        const filename = `${safeName(calibrationDate).replace(/-/g, '')}_${safeName(Array.from(group.matchedKeywords).join('、'))}.xlsx`;
+        const filename = `${namePrefix}_${targetOutputName(target)}.xlsx`;
         const outputPath = path.join(folderPath, filename); await writeTemplateText(target.file_path, outputPath, updates);
         const size = (await fs.promises.stat(outputPath)).size; const fileId = id('file');
-        const previewRows = group.rows.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = source.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
+        const previewRows = buildPreviewRows(source.header, group.rows);
         await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
         generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: group.rows.length, fileSize: size, fileType: 'target' });
       }
-      await this.db.run(`UPDATE transfer_tasks SET status='completed', matched_rows=?, skipped_rows=?, completed_at=? WHERE id=?`, [source.data.length - skipped, skipped, now(), taskId]);
+      await this.db.run(`UPDATE transfer_tasks SET status='completed', matched_rows=?, skipped_rows=?, skip_detail_json=?, completed_at=? WHERE id=?`, [source.data.length - skipped, skipped, JSON.stringify(serializeSkipDetails(skipDetails)), now(), taskId]);
       await fs.promises.rm(sourcePath, { force: true });
       return { task: { id: taskId, folderName: taskName, totalRows: source.data.length, matchedRows: source.data.length - skipped, skippedRows: skipped, status: 'completed' }, files: generated };
     } catch (error) {
@@ -821,7 +1083,7 @@ class OneClickTransferService {
         values.push(source.data[i][sourceIndex] ?? '');
         rowValues.set(address, values);
       }
-      for (const [address, values] of rowValues) orderUpdates.set(address, values.filter((value) => String(value).trim() !== '').join('/'));
+      for (const [address, values] of rowValues) orderUpdates.set(address, joinMappedValues(values));
     }
 
     taskId = id('task');
@@ -830,7 +1092,8 @@ class OneClickTransferService {
     const orderFolderName = `${namePrefix}_收发委托单`;
     folderPath = path.join(TASK_DIR, `${taskId}-${orderFolderName}`);
     await fs.promises.mkdir(folderPath, { recursive: true });
-    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, input.sourceFilename || file.originalname, sourceTemplate.name || sourceTemplate.template_name, String(orderTemplate.match_column || '').trim() || '收发委托单', 'processing', source.data.length, 0, 0, orderFolderName, now()]);
+    const skipDetails = { excluded: new Map<string, number>(), unmatched: 0 };
+    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,skip_detail_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, input.sourceFilename || file.originalname, sourceTemplate.name || sourceTemplate.template_name, String(orderTemplate.match_column || '').trim() || '收发委托单', 'processing', source.data.length, 0, 0, orderFolderName, now(), JSON.stringify(serializeSkipDetails(skipDetails))]);
     const orderPath = path.join(folderPath, orderFilename);
     await writeTemplateText(orderTemplate.file_path, orderPath, orderUpdates);
     const generated: any[] = [];
@@ -838,10 +1101,7 @@ class OneClickTransferService {
     // A workbook template may contain example rows. Only the rows produced
     // from the uploaded file belong to this task.
     generatedOrderRows.data = generatedOrderRows.data.slice(0, source.data.length);
-    const orderPreviewRows = generatedOrderRows.data.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => {
-      const index = generatedOrderRows.header.indexOf(column);
-      return [column, index >= 0 ? row[index] ?? '' : ''];
-    })));
+    const orderPreviewRows = buildPreviewRows(generatedOrderRows.header, generatedOrderRows.data);
     const orderSize = (await fs.promises.stat(orderPath)).size;
     const orderFileId = id('file');
     await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [orderFileId, taskId, null, orderTemplate.template_item_name || orderTemplate.template_name || orderTemplate.type_name || '收发委托单', orderTemplate.template_group_name || '收发委托模板', orderTemplate.template_item_name || orderTemplate.template_name || orderTemplate.type_name || '收发委托单', '收发委托单', orderFilename, orderPath, source.data.length, orderSize, JSON.stringify(orderPreviewRows), now()]);
@@ -853,19 +1113,35 @@ class OneClickTransferService {
     const matchIndex = generatedOrderRows.header.indexOf(matchColumn);
     if (generationMode === 'all') {
       if (!matchColumn || matchIndex < 0) throw new Error('收发委托单模板缺少转送匹配列');
-      const groups = new Map<string, { rows: Row[]; matchedKeywords: Set<string> }>();
-      for (const row of generatedOrderRows.data) {
+      const groups = new Map<string, { rows: Row[]; sourceRows: Row[]; matchedKeywords: Set<string> }>();
+      for (let rowIndex = 0; rowIndex < generatedOrderRows.data.length; rowIndex += 1) {
+        const row = generatedOrderRows.data[rowIndex];
         const value = String(row[matchIndex] ?? '').trim();
-        const target = targets.find((item) => splitMatchKeywords(item.match_keyword).includes(value));
-        if (!target) { skipped += 1; continue; }
-        const group = groups.get(target.id) || { rows: [], matchedKeywords: new Set<string>() };
-        group.rows.push(row); group.matchedKeywords.add(value); groups.set(target.id, group);
+        const configuredTarget = targets.find((item) => matchesTargetKeyword(item.match_keyword, value));
+        const target = targets.find((item) => matchesTarget(item, value));
+        if (!target) { skipped += 1; recordSkip(skipDetails, value, configuredTarget); continue; }
+        const group = groups.get(target.id) || { rows: [], sourceRows: [], matchedKeywords: new Set<string>() };
+        group.rows.push(row);
+        group.sourceRows.push(source.data[rowIndex] || []);
+        group.matchedKeywords.add(value);
+        groups.set(target.id, group);
       }
       for (const [targetId, group] of groups) {
         const target = targets.find((item) => item.id === targetId);
-        if (!target || !fs.existsSync(target.file_path)) continue;
+        if (!target || !target.file_path || !fs.existsSync(target.file_path)) throw new Error(`转送对象模板“${target?.template_item_name || target?.name || targetId}”文件不存在，请在运行监控中修复`);
         const targetBook = readRows(target.file_path, target.header_row, target.data_start_row);
-        const mappings = await this.getTargetMappings(targetId, orderTemplate.id);
+        const sourceSpecificMappings = sourceTemplateType === 'quote'
+          ? await this.db.all<any[]>('SELECT * FROM transfer_mappings WHERE target_template_id = ? AND upload_template_id = ? ORDER BY rowid', [targetId, sourceTemplate.id])
+          : [];
+        const useOriginalSource = shouldUseDirectTargetMappings(sourceTemplateType, sourceSpecificMappings);
+        const mappings = useOriginalSource ? sourceSpecificMappings : await this.getTargetMappings(targetId, orderTemplate.id);
+        const mappingSourceHeader = useOriginalSource ? source.header : generatedOrderRows.header;
+        const mappingSourceRows = useOriginalSource ? group.sourceRows : group.rows;
+        const mappingSourceName = useOriginalSource
+          ? sourceTemplate.template_item_name || sourceTemplate.name
+          : orderTemplate.template_item_name || orderTemplate.template_name;
+        const mappingIssues = mappingValidationIssues(mappingSourceHeader, targetBook.header, mappings);
+        if (mappingIssues.length) throw new Error(`“${mappingSourceName} → ${target.template_item_name || target.name}”映射不完整：${mappingIssues.join('、')}`);
         const updates = new Map<string, unknown>();
         this.validateForcedMappings(targetBook, mappings);
         for (const mapping of mappings.filter((item) => item.forced_key && item.target_cell)) {
@@ -873,28 +1149,27 @@ class OneClickTransferService {
           updates.set(XLSX.utils.encode_cell(anchor), forced[normalizeForcedKey(mapping.forced_key) as keyof typeof forced] ?? '');
         }
         const dynamicForcedColumnsForTarget = mappings.filter((item) => normalizeForcedKey(item.forced_key) === '校准日期' && !item.target_cell).map((mapping) => ({ mapping, column: targetBook.header.findIndex((header) => header === String(mapping.target_column || mapping.forced_key || '').trim()) })).filter((item) => item.column >= 0);
-        for (let i = 0; i < group.rows.length; i += 1) {
+        for (let i = 0; i < mappingSourceRows.length; i += 1) {
           const outputRow = Math.max(0, Number(target.data_start_row || 2) - 1) + i;
           for (const { mapping, column } of dynamicForcedColumnsForTarget) { const anchor = mergedAnchor(targetBook.sheet, outputRow, column); updates.set(XLSX.utils.encode_cell(anchor), forced[normalizeForcedKey(mapping.forced_key) as keyof typeof forced] ?? ''); }
           const rowValues = new Map<string, unknown[]>();
           for (const mapping of mappings.filter((item) => !item.forced_key)) {
-            const sourceIndex = generatedOrderRows.header.indexOf(mapping.source_column); const targetIndex = targetBook.header.indexOf(mapping.target_column);
+            const sourceIndex = mappingSourceHeader.indexOf(mapping.source_column); const targetIndex = targetBook.header.indexOf(mapping.target_column);
             if (sourceIndex < 0 || targetIndex < 0) continue;
             const anchor = mergedAnchor(targetBook.sheet, outputRow, targetIndex); const address = XLSX.utils.encode_cell(anchor);
-            const values = rowValues.get(address) || []; values.push(group.rows[i][sourceIndex] ?? ''); rowValues.set(address, values);
+            const values = rowValues.get(address) || []; values.push(mappingSourceRows[i][sourceIndex] ?? ''); rowValues.set(address, values);
           }
-          for (const [address, values] of rowValues) updates.set(address, values.filter((value) => String(value).trim() !== '').join('/'));
+          for (const [address, values] of rowValues) updates.set(address, joinMappedValues(values));
         }
-        const matchedKeywordName = safeName(Array.from(group.matchedKeywords).join('、'));
-        const filename = `${namePrefix}_${matchedKeywordName}.xlsx`; const outputPath = path.join(folderPath, filename);
+        const filename = `${namePrefix}_${targetOutputName(target)}.xlsx`; const outputPath = path.join(folderPath, filename);
         await writeTemplateText(target.file_path, outputPath, updates);
         const size = (await fs.promises.stat(outputPath)).size; const fileId = id('file');
-        const previewRows = group.rows.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => { const index = generatedOrderRows.header.indexOf(column); return [column, index >= 0 ? row[index] ?? '' : '']; })));
+        const previewRows = buildPreviewRows(mappingSourceHeader, mappingSourceRows);
         await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, group.rows.length, size, JSON.stringify(previewRows), now()]);
         generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: group.rows.length, fileSize: size, fileType: 'target' });
       }
     }
-    await this.db.run(`UPDATE transfer_tasks SET status='completed', matched_rows=?, skipped_rows=?, completed_at=? WHERE id=?`, [generationMode === 'order' ? source.data.length : source.data.length - skipped, generationMode === 'order' ? 0 : skipped, now(), taskId]);
+    await this.db.run(`UPDATE transfer_tasks SET status='completed', matched_rows=?, skipped_rows=?, skip_detail_json=?, completed_at=? WHERE id=?`, [generationMode === 'order' ? source.data.length : source.data.length - skipped, generationMode === 'order' ? 0 : skipped, JSON.stringify(serializeSkipDetails(skipDetails)), now(), taskId]);
     await fs.promises.rm(sourcePath, { force: true });
     return { task: { id: taskId, folderName: orderFolderName, totalRows: source.data.length, matchedRows: generationMode === 'order' ? source.data.length : source.data.length - skipped, skippedRows: generationMode === 'order' ? 0 : skipped, status: 'completed' }, files: generated };
     } catch (error) {
@@ -911,7 +1186,13 @@ class OneClickTransferService {
   }
 
   async process(input: any, file: Express.Multer.File, username = '') {
+    if (input?.sourceType === 'quote' || input?.sourceType === 'order' || input?.sourceType === 'import') {
+      await this.validateSelectedSource(input, file);
+    }
     if (input?.sourceType === 'quote') return this.processQuote(input, file, username);
+    if (input?.sourceType === 'import' && ['order', 'all'].includes(String(input.generationMode))) {
+      return this.processTwoStage({ ...input, sourceTemplateType: 'import', sourceFilename: file.originalname }, file, username);
+    }
     if (input?.sourceType === 'order' || input?.sourceType === 'import') return this.processTargetOnly(input, file, username);
     if (input?.importTemplateId) return this.processTwoStage(input, file, username);
     // Multipart clients and older frontend bundles may omit fields when the
@@ -947,7 +1228,7 @@ class OneClickTransferService {
     const matchedTargetIds = new Set<string>();
     for (const row of source.data) {
       const value = String(row[matchIndex] ?? '').trim();
-      const target = targets.find((item) => splitMatchKeywords(item.match_keyword).includes(value));
+      const target = targets.find((item) => matchesTarget(item, value));
       if (target) matchedTargetIds.add(target.id);
     }
     const mappedRows: any[] = [];
@@ -962,12 +1243,15 @@ class OneClickTransferService {
       throw new Error(`待处理文件缺少必要字段：${missingColumns.join('、')}`);
     }
     const groups = new Map<string, { rows: Row[]; matchedKeywords: Set<string> }>();
+    const skipDetails = { excluded: new Map<string, number>(), unmatched: 0 };
     let skipped = 0;
     for (const row of source.data) {
       const value = String(row[matchIndex] ?? '').trim();
-      const target = targets.find((item) => splitMatchKeywords(item.match_keyword).includes(value));
+      const configuredTarget = targets.find((item) => matchesTargetKeyword(item.match_keyword, value));
+      const target = targets.find((item) => matchesTarget(item, value));
       if (!target) {
         skipped += 1;
+        recordSkip(skipDetails, value, configuredTarget);
         continue;
       }
 
@@ -976,26 +1260,22 @@ class OneClickTransferService {
       group.matchedKeywords.add(value);
       groups.set(target.id, group);
     }
-    const allMatchedKeywords = Array.from(new Set(
-      Array.from(groups.values()).flatMap((group) => Array.from(group.matchedKeywords)),
-    ));
+    const matchedTargetNames = Array.from(groups.keys()).map((targetId) => targetOutputName(targets.find((item) => item.id === targetId))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
     const taskId = id('task');
     const namePrefix = `${safeName(certificateUnit)}_${safeName(calibrationDate).replace(/-/g, '')}`;
-    const folderName = `${namePrefix}_${safeName(allMatchedKeywords.join('、'))}`;
+    const folderName = `${namePrefix}_${matchedTargetNames.join('+') || '未匹配'}`;
     const folderPath = path.join(TASK_DIR, `${taskId}-${folderName}`); await fs.promises.mkdir(folderPath, { recursive: true });
-    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, requestedItemName, matchColumn, 'processing', source.data.length, source.data.length - skipped, skipped, folderName, now()]);
+    await this.db.run(`INSERT INTO transfer_tasks(id,user_name,certificate_unit,certificate_address,calibration_date,source_filename,business_type,match_column,status,total_rows,matched_rows,skipped_rows,folder_name,created_at,skip_detail_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [taskId, username, certificateUnit, certificateAddress, calibrationDate, file.originalname, requestedItemName, matchColumn, 'processing', source.data.length, source.data.length - skipped, skipped, folderName, now(), JSON.stringify(serializeSkipDetails(skipDetails))]);
     const generated: any[] = [];
     for (const [targetId, group] of groups) {
       const { rows } = group;
-      const matchedKeywordName = safeName(Array.from(group.matchedKeywords).join('、'));
       const target = targets.find((item) => item.id === targetId);
-      if (!target || !fs.existsSync(target.file_path)) continue;
+      if (!target || !target.file_path || !fs.existsSync(target.file_path)) throw new Error(`转送对象模板“${target?.template_item_name || target?.name || targetId}”文件不存在，请在运行监控中修复`);
       const targetBook = readRows(target.file_path, target.header_row, target.data_start_row);
       const mappings = await this.getTargetMappings(targetId, configuredTemplate.id);
-      const previewRows = rows.map((row) => Object.fromEntries(PREVIEW_COLUMNS.map((column) => {
-        const sourceIndex = source.header.indexOf(column);
-        return [column, sourceIndex >= 0 ? row[sourceIndex] ?? '' : ''];
-      })));
+      const mappingIssues = mappingValidationIssues(source.header, targetBook.header, mappings);
+      if (mappingIssues.length) throw new Error(`“${configuredTemplate.template_item_name || configuredTemplate.template_name} → ${target.template_item_name || target.name}”映射不完整：${mappingIssues.join('、')}`);
+      const previewRows = buildPreviewRows(source.header, rows);
       const updates = new Map<string, unknown>();
       this.validateForcedMappings(targetBook, mappings);
       const forced = { '证书单位': certificateUnit, '证书地址': certificateAddress, '校准日期': calibrationDate };
@@ -1043,11 +1323,11 @@ class OneClickTransferService {
         for (const [address, values] of rowMappedValues) {
           updates.set(
             address,
-            values.filter((value) => String(value).trim() !== '').join('/'),
+            joinMappedValues(values),
           );
         }
       }
-      const filename = `${namePrefix}_${matchedKeywordName}.xlsx`;
+      const filename = `${namePrefix}_${targetOutputName(target)}.xlsx`;
       const outputPath = path.join(folderPath, filename);
       await writeTemplateText(target.file_path, outputPath, updates);
       const size = (await fs.promises.stat(outputPath)).size;
@@ -1055,7 +1335,7 @@ class OneClickTransferService {
       await this.db.run(`INSERT INTO transfer_files(id,task_id,target_template_id,template_name,template_group_name,template_item_name,match_keyword,filename,file_path,row_count,file_size,preview_data_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [fileId, taskId, targetId, target.name, target.template_group_name || '转送对象模板', target.template_item_name || target.name, target.match_keyword, filename, outputPath, rows.length, size, JSON.stringify(previewRows), now()]);
       generated.push({ id: fileId, templateName: target.name, matchKeyword: target.match_keyword, filename, rowCount: rows.length, fileSize: size });
     }
-    await this.db.run(`UPDATE transfer_tasks SET status='completed',completed_at=? WHERE id=?`, [now(), taskId]); await fs.promises.rm(sourcePath, { force: true }); return { task: { id: taskId, folderName, totalRows: source.data.length, matchedRows: source.data.length - skipped, skippedRows: skipped, status: 'completed' }, files: generated };
+      await this.db.run(`UPDATE transfer_tasks SET status='completed', skip_detail_json=?, completed_at=? WHERE id=?`, [JSON.stringify(serializeSkipDetails(skipDetails)), now(), taskId]); await fs.promises.rm(sourcePath, { force: true }); return { task: { id: taskId, folderName, totalRows: source.data.length, matchedRows: source.data.length - skipped, skippedRows: skipped, status: 'completed', skipDetailJson: serializeSkipDetails(skipDetails) }, files: generated };
   }
 
   async listTasks(username = '') {
@@ -1075,7 +1355,18 @@ class OneClickTransferService {
     for (const task of tasks) {
       task.files = filesByTask.get(task.id) || [];
       for (const file of task.files) {
-        if (file.preview_data_json) continue;
+        let hasPreviewColumns = false;
+        if (file.preview_data_json) {
+          try {
+            const parsed = JSON.parse(file.preview_data_json);
+            hasPreviewColumns = Array.isArray(parsed)
+              && (parsed.length > 0 || Number(file.row_count || 0) === 0)
+              && parsed.every((row) => Object.prototype.hasOwnProperty.call(row, '备注'));
+          } catch {
+            hasPreviewColumns = false;
+          }
+        }
+        if (hasPreviewColumns) continue;
         const previewRows = await this.rebuildPreviewRows(file);
         if (!previewRows.length) continue;
         file.preview_data_json = JSON.stringify(previewRows);
@@ -1102,7 +1393,24 @@ class OneClickTransferService {
     return this.db.all<any[]>('SELECT * FROM transfer_files WHERE task_id = ? AND match_keyword = ? ORDER BY template_name', [taskId, keyword]);
   }
   async markDownloaded(fileId: string) { await this.db.run('UPDATE transfer_files SET downloaded=1 WHERE id=?', [fileId]); }
-  async getZip(taskId: string, fileIds?: string[]) { const task = await this.getTask(taskId); if (!task) throw new Error('任务不存在'); const files = await this.db.all<any[]>('SELECT * FROM transfer_files WHERE task_id=?', [taskId]); const selected = fileIds?.length ? files.filter((item) => fileIds.includes(item.id)) : files; const entries = []; for (const item of selected) if (fs.existsSync(item.file_path)) entries.push({ name: path.basename(item.filename), data: await fs.promises.readFile(item.file_path) }); return { filename: `${task.folder_name}.zip`, data: await zipBuffers(entries) }; }
+  async getZip(taskId: string, fileIds?: string[]) {
+    const task = await this.getTask(taskId);
+    if (!task) throw new Error('任务不存在');
+    const files = await this.db.all<any[]>('SELECT * FROM transfer_files WHERE task_id=?', [taskId]);
+    const selected = fileIds?.length ? files.filter((item) => fileIds.includes(item.id)) : files;
+    const entries = [];
+    for (const item of selected) if (fs.existsSync(item.file_path)) entries.push({ name: path.basename(item.filename), data: await fs.promises.readFile(item.file_path) });
+    const targetNames = [...new Set(selected.filter((item) => item.target_template_id).map((item) => safeName(item.template_item_name || item.template_name)))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const otherGroups = [...new Set(selected.filter((item) => !item.target_template_id).map((item) => {
+      const group = String(item.template_group_name || item.template_item_name || '转送文件');
+      if (group.includes('导入格式')) return '导入格式';
+      if (group.includes('收发委托')) return '收发委托单';
+      return safeName(group.replace(/模板组?$/u, ''));
+    }))];
+    const outputNames = targetNames.length ? targetNames : otherGroups;
+    const prefix = `${safeName(task.certificate_unit)}_${safeName(task.calibration_date).replace(/-/g, '')}`;
+    return { filename: `${prefix}_${outputNames.join('+') || '转送文件'}.zip`, data: await zipBuffers(entries) };
+  }
   async cleanupExpired() { const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000; const tasks = await this.db.all<any[]>('SELECT id FROM transfer_tasks WHERE created_at < ? AND id NOT IN (SELECT DISTINCT task_id FROM transfer_files WHERE downloaded = 0)', [new Date(cutoff).toISOString()]); for (const task of tasks) { const files = await this.db.all<any[]>('SELECT file_path FROM transfer_files WHERE task_id=?', [task.id]); const folders = new Set<string>(); for (const file of files) { folders.add(path.dirname(file.file_path)); await fs.promises.rm(file.file_path, { force: true }); } for (const folder of folders) await fs.promises.rm(folder, { recursive: true, force: true }); await this.db.run('DELETE FROM transfer_tasks WHERE id=?', [task.id]); } return tasks.length; }
 }
 export default new OneClickTransferService();
