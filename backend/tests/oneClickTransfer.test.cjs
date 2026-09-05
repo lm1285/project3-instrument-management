@@ -9,7 +9,15 @@ const {
   normalizeMatchKeyword,
   rankSourceTemplates,
   shouldUseDirectTargetMappings,
+  toFilesystemPath,
 } = require('../dist/services/oneClickTransferService');
+
+test('keeps normal paths portable and does not double-prefix extended Windows paths', () => {
+  const normalPath = process.platform === 'win32' ? 'C:\\data\\task\\file.xlsx' : '/tmp/task/file.xlsx';
+  const expectedPath = process.platform === 'win32' ? '\\\\?\\C:\\data\\task\\file.xlsx' : normalPath;
+  assert.equal(toFilesystemPath(normalPath), expectedPath);
+  assert.equal(toFilesystemPath('\\\\?\\C:\\data\\task\\file.xlsx'), '\\\\?\\C:\\data\\task\\file.xlsx');
+});
 
 test('normalizes excluded keywords with trim, NFKC, uppercase and space removal', () => {
   assert.equal(normalizeExcludedKeyword('  ａ  （不带标） '), 'A(不带标)');
@@ -21,6 +29,13 @@ test('normalizes full-width letters, case, brackets and certificate suffixes', (
   assert.deepEqual(variants.map(normalizeMatchKeyword), variants.map(() => 'B'));
   for (const value of variants) assert.equal(matchesTargetKeyword('中溯,B', value), true);
   assert.equal(matchesTargetKeyword('中溯,B', 'EX'), false);
+});
+
+test('matches standalone keywords inside a delimited description without substring false positives', () => {
+  assert.equal(matchesTargetKeyword('B,A', 'B，校准点100，A，测100'), true);
+  assert.equal(matchesTargetKeyword('B', 'B+补充说明'), true);
+  assert.equal(matchesTargetKeyword('B', 'AB'), false);
+  assert.equal(matchesTargetKeyword('中溯', '中溯检测'), false);
 });
 
 test('ignores placeholder values and removes duplicates when fields merge', () => {

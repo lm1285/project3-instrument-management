@@ -1,7 +1,7 @@
 {
   "name": "standard-material-management",
   "private": true,
-  "version": "0.0.108",
+  "version": "0.0.111",
   "type": "module",
   "scripts": {
     "dev": "vite",

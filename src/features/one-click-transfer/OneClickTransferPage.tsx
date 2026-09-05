@@ -58,19 +58,6 @@ const snapshotUploadFile = async (file: File): Promise<File> => {
   });
 };
 
-type Target = {
-  id: string;
-  name: string;
-  template_group_name?: string;
-  template_item_name?: string;
-  match_keyword: string;
-  exclude_keyword?: string;
-  header_row: number;
-  data_start_row: number;
-  headers?: string[];
-  mappings?: any[];
-  file_name?: string;
-};
 type UploadTemplate = {
   id: string;
   template_name: string;
@@ -101,6 +88,8 @@ type QuoteTemplate = {
   data_start_row: number;
   file_name?: string;
   headers?: string[];
+  updated_at?: string;
+  created_at?: string;
 };
 
 /** Show the parent/sub-format relationship when template metadata provides it. */
@@ -114,8 +103,6 @@ const templateGroupName = (item: any, fallback: string) =>
   item?.template_group_name || item?.templateGroupName || item?.parent_name || item?.template_group || fallback;
 const templateItemName = (item: any, fallback: string) =>
   item?.template_item_name || item?.templateItemName || item?.name || item?.template_name || item?.type_name || fallback;
-const templateGroupOptions = (items: any[], fallback: string) =>
-  Array.from(new Set(items.map((item) => templateGroupName(item, fallback)))).map((value) => ({ label: value, value }));
 const TEMPLATE_GROUP_NAMES = {
   quote: "报价单模板组",
   import: "导入格式模板组",
@@ -156,7 +143,6 @@ const OneClickTransferPage: React.FC = () => {
   const [form] = Form.useForm();
   const [baseInfo, setBaseInfo] = useState<any>({});
   const [sourceFile, setSourceFile] = useState<UploadFile | null>(null);
-  const [headers, setHeaders] = useState<string[]>([]);
   const [importTemplateId, setImportTemplateId] = useState<string>();
   const [orderTemplateId, setOrderTemplateId] = useState<string>();
   const [quoteTemplateId, setQuoteTemplateId] = useState<string>();
@@ -257,7 +243,6 @@ const OneClickTransferPage: React.FC = () => {
       const defaultMode = detectedType === "quote" ? "all" : "target";
       setSourceType(detectedType);
       setGenerationMode(defaultMode);
-      setHeaders(best.detectedHeaders || []);
       form.setFieldsValue({ sourceType: detectedType, generationMode: defaultMode });
       if (detectedType === "quote") { setQuoteTemplateId(best.id); form.setFieldsValue({ quoteTemplateId: best.id }); }
       else if (detectedType === "import") { setImportTemplateId(best.id); form.setFieldsValue({ importTemplateId: best.id }); }
@@ -276,7 +261,6 @@ const OneClickTransferPage: React.FC = () => {
     const detectedHeaders = (rows[(template?.header_row || 1) - 1] || [])
         .map((item: any) => String(item).trim())
         .filter(Boolean);
-    setHeaders(detectedHeaders);
     if (detectedHeaders.length) {
       const candidates = selectedSourceType === "quote" ? config.quoteTemplates || [] : selectedSourceType === "import" ? config.importTemplates || [] : config.orderTemplates || config.uploadTemplates || [];
       const ranked = candidates.map((item: any) => ({ item, score: (item.headers || []).filter((h: string) => detectedHeaders.includes(h)).length })).sort((a: any, b: any) => b.score - a.score);
@@ -299,12 +283,11 @@ const OneClickTransferPage: React.FC = () => {
         size: snapshot.size,
         type: snapshot.type,
         status: "done",
-        originFileObj: snapshot,
+        originFileObj: snapshot as any,
       });
       await parseHeaders(snapshot);
     } catch (error: any) {
       setSourceFile(null);
-      setHeaders([]);
       setSourceDetection({ status: "error", message: error?.message || "读取Excel文件失败" });
       appMessage.error(error?.message || "读取Excel文件失败");
     }
@@ -313,7 +296,6 @@ const OneClickTransferPage: React.FC = () => {
   };
   const removeSourceFile = () => {
     setSourceFile(null);
-    setHeaders([]);
     setSourceDetection(null);
   };
   const handleMobileSourceFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -416,7 +398,6 @@ const OneClickTransferPage: React.FC = () => {
            form.setFieldsValue({ sourceType: "quote", generationMode: "all" });
            setGenerationMode("all");
           setSourceFile(null);
-          setHeaders([]);
           setModalOpen(true);
         }}
       >
@@ -705,6 +686,7 @@ const OneClickTransferPage: React.FC = () => {
                   "certificateUnit",
                   "certificateAddress",
                   "calibrationDate",
+                  "specialRequirements",
                 ])
                 .then((values) => {
                   setBaseInfo(values);
@@ -740,6 +722,9 @@ const OneClickTransferPage: React.FC = () => {
               >
                 <DatePicker style={{ width: "100%" }} />
               </Form.Item>
+              <Form.Item name="specialRequirements" label="特殊要求">
+                <Input.TextArea rows={3} placeholder="请输入特殊要求（选填）" />
+              </Form.Item>
               <Button
                 type="primary"
                 onClick={async () => {
@@ -748,6 +733,7 @@ const OneClickTransferPage: React.FC = () => {
                       "certificateUnit",
                       "certificateAddress",
                       "calibrationDate",
+                      "specialRequirements",
                     ]);
                     setBaseInfo(values);
                     setStep(1);
@@ -760,11 +746,11 @@ const OneClickTransferPage: React.FC = () => {
           ) : (
             <Form form={form} layout="vertical">
               <Form.Item name="sourceType" label="上传文件类型" initialValue="quote">
-                <Radio.Group value={sourceType} onChange={(event) => { const value = event.target.value; setSourceType(value); setHeaders([]); setSourceFile(null); setSourceDetection(null); const defaultMode = value === "quote" ? "all" : "target"; setGenerationMode(defaultMode); form.setFieldsValue({ sourceType: value, generationMode: defaultMode }); }} options={[{ label: "报价单", value: "quote" }, { label: "导入格式", value: "import" }, { label: "收发委托单", value: "order" }]} />
+                <Radio.Group value={sourceType} onChange={(event) => { const value = event.target.value; setSourceType(value); setSourceFile(null); setSourceDetection(null); const defaultMode = value === "quote" ? "all" : "target"; setGenerationMode(defaultMode); form.setFieldsValue({ sourceType: value, generationMode: defaultMode }); }} options={[{ label: "报价单", value: "quote" }, { label: "导入格式", value: "import" }, { label: "收发委托单", value: "order" }]} />
               </Form.Item>
-              {sourceType === "quote" && <Form.Item name="quoteTemplateId" label="报价单模板项" rules={[{ required: true, message: "请选择报价单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择报价单模板项" options={(config.quoteTemplates || []).map((item: QuoteTemplate) => ({ label: templateLabel(item, "报价单模板"), value: item.id }))} onChange={(value) => { setQuoteTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
-              {sourceType === "import" && <Form.Item name="importTemplateId" label="导入格式模板项" rules={[{ required: true, message: "请选择导入格式模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} onChange={(value) => { setImportTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
-              {sourceType === "order" && <Form.Item name="orderTemplateId" label="收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={(value) => { setOrderTemplateId(value); setHeaders([]); setSourceFile(null); }} /></Form.Item>}
+              {sourceType === "quote" && <Form.Item name="quoteTemplateId" label="报价单模板项" rules={[{ required: true, message: "请选择报价单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择报价单模板项" options={(config.quoteTemplates || []).map((item: QuoteTemplate) => ({ label: templateLabel(item, "报价单模板"), value: item.id }))} onChange={(value) => { setQuoteTemplateId(value); setSourceFile(null); }} /></Form.Item>}
+              {sourceType === "import" && <Form.Item name="importTemplateId" label="导入格式模板项" rules={[{ required: true, message: "请选择导入格式模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} onChange={(value) => { setImportTemplateId(value); setSourceFile(null); }} /></Form.Item>}
+              {sourceType === "order" && <Form.Item name="orderTemplateId" label="收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={(value) => { setOrderTemplateId(value); setSourceFile(null); }} /></Form.Item>}
               {sourceType === "quote" && generationMode === "import" && <Form.Item name="importTemplateId" label="生成所用导入格式模板项" rules={[{ required: true, message: "请选择导入格式模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} onChange={setImportTemplateId} /></Form.Item>}
               {(sourceType === "quote" || sourceType === "import") && (generationMode === "order" || generationMode === "all") && <Form.Item name="orderTemplateId" label="生成所用收发委托单模板项" rules={[{ required: true, message: "请选择收发委托单模板项" }]}><Select showSearch optionFilterProp="label" placeholder="请选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} onChange={setOrderTemplateId} /></Form.Item>}
               <Form.Item name="generationMode" label="生成内容" initialValue={sourceType === "quote" ? "all" : "target"}>
@@ -847,410 +833,6 @@ const Steps = ({
     </button>
   </div>
 );
-const LegacyTemplateSettings = ({ config, reload }: any) => {
-  const [uploadForm] = Form.useForm();
-  const [targetForm] = Form.useForm();
-  const [uploadFile, setUploadFile] = useState<File>();
-  const [targetFile, setTargetFile] = useState<File>();
-  const saveUpload = async () => {
-    const values = await uploadForm.validateFields();
-    if (!uploadFile) throw new Error("请上传待上传模板Excel文件");
-    const data = new FormData();
-    Object.entries(values).forEach(([key, value]) =>
-      data.append(key, String(value ?? "")),
-    );
-    data.append("file", uploadFile);
-    await apiClient.upload("/one-click-transfer/upload-templates", data, { timeout: 120000 });
-    await reload();
-    uploadForm.resetFields();
-    setUploadFile(undefined);
-  };
-  const saveTarget = async () => {
-    const values = await targetForm.validateFields();
-    if (!targetFile) throw new Error("请选择转送对象模板文件");
-    const data = new FormData();
-    Object.entries(values).forEach(([key, value]) =>
-      data.append(key, String(value ?? "")),
-    );
-    data.append("file", targetFile);
-    await apiClient.upload("/one-click-transfer/target-templates", data, { timeout: 120000 });
-    await reload();
-    targetForm.resetFields();
-    setTargetFile(undefined);
-  };
-  return (
-    <Row gutter={16}>
-      <Col span={10}>
-        <Card title="待上传模板">
-          <Form form={uploadForm} layout="vertical">
-            <Form.Item name="templateItemName" label="模板项名称" rules={[{ required: true }]}><Input placeholder="请输入模板项名称" /></Form.Item>
-            <Form.Item name="templateItemName" label="模板项名称" rules={[{ required: true }]}><Input placeholder="请输入模板项名称" /></Form.Item>
-            <Form.Item name="headerRow" label="表头行号" initialValue={1}>
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="dataStartRow"
-              label="数据起始行号"
-              initialValue={2}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item name="matchColumn" label="转送匹配列" rules={[{ required: true, message: "请选择匹配列" }]}>
-              <Select placeholder={uploadHeaders.length ? "请选择转送匹配列" : "请先选择Excel文件"} options={uploadHeaders.map((header) => ({ label: header, value: header }))} />
-            </Form.Item>
-            <Form.Item name="matchColumn" label="匹配列" rules={[{ required: true, message: "请选择匹配列" }]}>
-              <Select placeholder={uploadHeaders.length ? "请选择匹配列" : "请先选择Excel文件"} options={uploadHeaders.map((header) => ({ label: header, value: header }))} />
-            </Form.Item>
-            <Upload
-              beforeUpload={(f) => {
-                setUploadFile(f);
-                return false;
-              }}
-              maxCount={1}
-              accept=".xlsx"
-            >
-              <Button icon={<PlusOutlined />}>选择待上传模板文件</Button>
-            </Upload>
-            <Button
-              type="primary"
-              onClick={saveUpload}
-              style={{ marginTop: 12 }}
-            >
-              保存
-            </Button>
-          </Form>
-          <div className="mapping-toolbar">
-            <strong>字段映射</strong>
-            <Space size={12}>
-              <span>已匹配 {mappings.filter((item) => item.sourceColumn && item.targetColumn).length} 项 · 待配置 {mappings.filter((item) => !item.targetColumn && !item.targetCell).length} 项</span>
-              <Select
-                className="mapping-special-add"
-                placeholder="新增特殊映射"
-                value={undefined}
-                options={["证书单位", "证书地址", "校准日期"].map((item) => ({ label: item, value: item }))}
-                onChange={(forcedKey) =>
-                  setMappings((current) => [
-                    ...current,
-                    { forcedKey, sourceColumn: "", targetColumn: "", targetMode: forcedKey === "校准日期" ? "header" : "cell" },
-                  ])
-                }
-              />
-            </Space>
-          </div>
-          <div className="mapping-list">
-            {mappings.map((row: any, index: number) => {
-              const special = Boolean(row.forcedKey);
-              const complete = Boolean(row.targetColumn || row.targetCell);
-              return (
-                <div className={`mapping-row ${special ? "mapping-row-special" : ""}`} key={`${index}-${row.forcedKey || row.sourceColumn || "new"}`}>
-                  <span className="mapping-index">{String(index + 1).padStart(2, "0")}</span>
-                  {special ? <Input disabled value={row.forcedKey} /> : <Select showSearch optionFilterProp="label" placeholder="选择源字段" options={sourceOptions} value={row.sourceColumn || undefined} onChange={(value) => updateMapping(index, { sourceColumn: value })} />}
-                  <ArrowRightOutlined className="mapping-arrow" />
-                  {special ? <Space.Compact block><Select style={{ width: 118 }} value={row.targetMode || (row.targetCell ? "cell" : "header")} options={[{ label: "目标列", value: "header" }, { label: "固定单元格", value: "cell" }]} disabled={!['校准日期', '检定日期'].includes(row.forcedKey)} onChange={(value) => updateMapping(index, value === "cell" ? { targetMode: value, targetColumn: "" } : { targetMode: value, targetCell: "" })} />{(row.targetMode || (row.targetCell ? "cell" : "header")) === "cell" ? <Input placeholder="例如 B2" value={row.targetCell} onChange={(event) => updateMapping(index, { targetCell: event.target.value })} /> : <Select showSearch optionFilterProp="label" placeholder="选择目标列" options={targetOptions} value={row.targetColumn || row.forcedKey || undefined} onChange={(value) => updateMapping(index, { targetColumn: value })} />}</Space.Compact> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={row.targetColumn || undefined} onChange={(value) => updateMapping(index, { targetColumn: value })} />}
-                  <span className={`mapping-status ${complete ? "mapping-status-success" : "mapping-status-warning"}`}>{complete ? <CheckCircleOutlined /> : "●"} {complete ? "已匹配" : "待配置"}</span>
-                  <Button type="text" danger icon={<DeleteOutlined />} aria-label="删除映射" onClick={() => setMappings((current) => current.filter((_, rowIndex) => rowIndex !== index))} />
-                </div>
-              );
-            })}
-          </div>
-          <Table
-            className="mapping-legacy-table"
-            size="small"
-            pagination={false}
-            dataSource={config.uploadTemplates}
-            rowKey="id"
-            columns={[
-              { title: "模板组名称", dataIndex: "template_group_name" },
-              { title: "模板项名称", dataIndex: "template_item_name" },
-              { title: "文件", dataIndex: "file_name" },
-              { title: "表头", dataIndex: "header_row" },
-              { title: "起始", dataIndex: "data_start_row" },
-            ]}
-          />
-        </Card>
-      </Col>
-      <Col span={14}>
-        <Card title="转送对象模板">
-          <Form form={targetForm} layout="vertical">
-            <Form.Item name="templateItemName" label="模板项名称" rules={[{ required: true }]}><Input placeholder="例如：中溯检测格式" /></Form.Item>
-            <Form.Item
-              name="matchKeyword"
-              label="匹配关键字"
-              extra="多个关键字请用中文或英文逗号分隔，例如：中溯，中溯检测"
-              rules={[
-                { required: true, message: "请填写至少一个匹配关键字" },
-                {
-                  validator: (_, value) => String(value || "").split(/[,，]/).some((item) => item.trim())
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("请填写至少一个匹配关键字")),
-                },
-              ]}
-            >
-              <Input placeholder="例如：中溯，中溯检测" />
-            </Form.Item>
-            <Form.Item name="headerRow" label="表头行号" initialValue={1}>
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="dataStartRow"
-              label="数据起始行号"
-              initialValue={2}
-            >
-              <Input />
-            </Form.Item>
-            <Upload
-              beforeUpload={async (f) => {
-                setTargetFile(await snapshotUploadFile(f));
-                return false;
-              }}
-              maxCount={1}
-              accept=".xlsx"
-            >
-              <Button icon={<PlusOutlined />}>选择模板文件</Button>
-            </Upload>
-            <Button
-              type="primary"
-              onClick={saveTarget}
-              style={{ marginTop: 12 }}
-            >
-              保存模板
-            </Button>
-          </Form>
-          <Table
-            size="small"
-            pagination={false}
-            dataSource={config.targetTemplates}
-            rowKey="id"
-            columns={[
-              { title: "模板", dataIndex: "name" },
-              { title: "关键字", dataIndex: "match_keyword" },
-              { title: "文件", dataIndex: "file_path" },
-            ]}
-          />
-        </Card>
-      </Col>
-    </Row>
-  );
-};
-void LegacyTemplateSettings;
-const LegacyTemplateSettingsManager = ({ config, reload }: any) => {
-  const [uploadForm] = Form.useForm();
-  const [targetForm] = Form.useForm();
-  const [uploadFile, setUploadFile] = useState<File>();
-  const [targetFile, setTargetFile] = useState<File>();
-  const [editingUpload, setEditingUpload] = useState<any>();
-  const [editingTarget, setEditingTarget] = useState<any>();
-  const saveUpload = async () => {
-    const values = await uploadForm.validateFields();
-    if (!uploadFile && !editingUpload?.file_path) throw new Error("请先选择Excel文件");
-    const data = new FormData();
-    Object.entries(values).forEach(([key, value]) =>
-      data.append(key, String(value ?? "")),
-    );
-    if (editingUpload?.id) data.append("id", editingUpload.id);
-    if (uploadFile) data.append("file", uploadFile);
-    await apiClient.upload("/one-click-transfer/upload-templates", data);
-    await reload();
-    uploadForm.resetFields();
-    setUploadFile(undefined);
-    setEditingUpload(undefined);
-  };
-  const saveTarget = async () => {
-    const values = await targetForm.validateFields();
-    if (!targetFile && !editingTarget?.file_path) throw new Error("请先选择Excel文件");
-    const data = new FormData();
-    Object.entries(values).forEach(([key, value]) =>
-      data.append(key, String(value ?? "")),
-    );
-    if (editingTarget?.id) {
-      data.append("id", editingTarget.id);
-      data.append("filePath", editingTarget.file_path);
-    }
-    if (targetFile) data.append("file", targetFile);
-    await apiClient.upload("/one-click-transfer/target-templates", data);
-    await reload();
-    targetForm.resetFields();
-    setTargetFile(undefined);
-    setEditingTarget(undefined);
-  };
-  const editUpload = (row: any) => {
-    setEditingUpload(row);
-    uploadForm.setFieldsValue({
-      templateItemName: row.template_item_name || row.template_name,
-      headerRow: row.header_row,
-      dataStartRow: row.data_start_row,
-    });
-  };
-  const editTarget = (row: any) => {
-    setEditingTarget(row);
-    setTargetFile(undefined);
-    targetForm.setFieldsValue({
-      templateItemName: row.template_item_name || row.name,
-      matchKeyword: row.match_keyword,
-      excludeKeyword: row.exclude_keyword || "A,华屹,A（不带标）",
-      headerRow: row.header_row,
-      dataStartRow: row.data_start_row,
-    });
-  };
-  const remove = async (kind: "upload" | "target", row: any) => {
-    await apiClient.delete(
-      `/one-click-transfer/${kind === "upload" ? "upload-templates" : "target-templates"}/${row.id}`,
-    );
-    await reload();
-  };
-  return (
-    <Row gutter={16}>
-      <Col span={10}>
-        <Card title="待上传模板">
-          <Form form={uploadForm} layout="vertical">
-            <Form.Item name="templateItemName" label="模板项名称" rules={[{ required: true }]}><Input placeholder="例如：收发委托单" /></Form.Item>
-            <Form.Item name="headerRow" label="表头行号" initialValue={1}>
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="dataStartRow"
-              label="数据起始行号"
-              initialValue={2}
-            >
-              <Input />
-            </Form.Item>
-            <Upload
-              beforeUpload={(f) => {
-                setUploadFile(f);
-                return false;
-              }}
-              maxCount={1}
-              accept=".xlsx,.xls"
-            >
-              <Button icon={<PlusOutlined />}>选择Excel文件</Button>
-            </Upload>
-            <Space style={{ marginTop: 12 }}>
-              <Button type="primary" onClick={saveUpload}>
-                {editingUpload ? "更新" : "保存"}
-              </Button>
-              {editingUpload && (
-                <Button
-                  onClick={() => {
-                    setEditingUpload(undefined);
-                    uploadForm.resetFields();
-                  }}
-                >
-                  取消
-                </Button>
-              )}
-            </Space>
-          </Form>
-          <Table
-            size="small"
-            pagination={false}
-            dataSource={config.uploadTemplates}
-            rowKey="id"
-            columns={[
-              { title: "模板组名称", dataIndex: "template_group_name" },
-              { title: "模板项名称", dataIndex: "template_item_name" },
-              { title: "文件", dataIndex: "file_name" },
-              {
-                title: "操作",
-                render: (_: any, row: any) => (
-                  <Space>
-                    <Button type="link" onClick={() => editUpload(row)}>
-                      修改
-                    </Button>
-                    <Button
-                      type="link"
-                      danger
-                      onClick={() => remove("upload", row)}
-                    >
-                      删除
-                    </Button>
-                  </Space>
-                ),
-              },
-            ]}
-          />
-        </Card>
-      </Col>
-      <Col span={14}>
-        <Card title="转送对象模板">
-          <Form form={targetForm} layout="vertical">
-            <Form.Item name="templateItemName" label="模板项名称" rules={[{ required: true }]}><Input placeholder="例如：中溯检测格式" /></Form.Item>
-            <Form.Item
-              name="matchKeyword"
-              label="匹配关键字"
-              rules={[{ required: true }]}
-            >
-              <Input placeholder="多个关键字用中文或英文逗号分隔，例如：中溯，中溯检测" />
-            </Form.Item>
-            <Form.Item name="headerRow" label="表头行号" initialValue={1}>
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="dataStartRow"
-              label="数据起始行号"
-              initialValue={2}
-            >
-              <Input />
-            </Form.Item>
-            <Upload
-              beforeUpload={async (f) => {
-                setTargetFile(await snapshotUploadFile(f));
-                return false;
-              }}
-              maxCount={1}
-              accept=".xlsx,.xls"
-            >
-              <Button icon={<PlusOutlined />}>选择Excel文件</Button>
-            </Upload>
-            <Space style={{ marginTop: 12 }}>
-              <Button type="primary" onClick={saveTarget}>
-                {editingTarget ? "更新" : "保存模板"}
-              </Button>
-              {editingTarget && (
-                <Button
-                  onClick={() => {
-                    setEditingTarget(undefined);
-                    targetForm.resetFields();
-                  }}
-                >
-                  取消
-                </Button>
-              )}
-            </Space>
-          </Form>
-          <Table
-            size="small"
-            pagination={false}
-            dataSource={config.targetTemplates}
-            rowKey="id"
-            columns={[
-              { title: "模板", dataIndex: "name" },
-              { title: "关键字", dataIndex: "match_keyword" },
-              {
-                title: "操作",
-                render: (_: any, row: any) => (
-                  <Space>
-                    <Button type="link" onClick={() => editTarget(row)}>
-                      修改
-                    </Button>
-                    <Button
-                      type="link"
-                      danger
-                      onClick={() => remove("target", row)}
-                    >
-                      删除
-                    </Button>
-                  </Space>
-                ),
-              },
-            ]}
-          />
-        </Card>
-      </Col>
-    </Row>
-  );
-};
-
-void LegacyTemplateSettingsManager;
 const QuoteTemplateSettings = ({ config, reload }: any) => {
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -1315,13 +897,13 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
     if (file) data.append("file", file);
     await apiClient.upload("/one-click-transfer/import-templates", data, { timeout: 120000 });
     await reload();
-    form.resetFields(); setFile(undefined); setHeaders([]); setEditing(undefined);
+    form.resetFields(); setFile(undefined); setEditing(undefined);
     message.success("模板保存完成");
     } finally {
       setSaving(false);
     }
   };
-  const edit = (row: any) => { setEditing(row); setHeaders(row.headers || []); form.setFieldsValue({ templateItemName: row.template_item_name || row.name, headerRow: row.header_row, dataStartRow: row.data_start_row, matchColumn: row.match_column, matchColumnEnabled: row.match_column_enabled !== 0 }); };
+  const edit = (row: any) => { setEditing(row); form.setFieldsValue({ templateItemName: row.template_item_name || row.name, headerRow: row.header_row, dataStartRow: row.data_start_row, matchColumn: row.match_column, matchColumnEnabled: row.match_column_enabled !== 0 }); };
   const remove = async (row: any) => { await apiClient.delete(`/one-click-transfer/import-templates/${row.id}`); await reload(); };
   return <Card title="导入格式模板">
      <Form
@@ -1341,8 +923,8 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
        <Form.Item name="matchColumnEnabled" label="启用转送匹配列" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
        <Upload
          fileList={file ? [{ uid: file.name, name: file.name, status: "done" as const }] : []}
-          beforeUpload={async (next) => { const snapshot = await snapshotUploadFile(next); setFile(snapshot); setHeaders(await readHeaders(snapshot, Number(form.getFieldValue("headerRow") || 1))); message.success("Excel 文件上传成功"); return false; }}
-         onRemove={() => { setFile(undefined); setHeaders(editing?.headers || []); return true; }}
+          beforeUpload={async (next) => { const snapshot = await snapshotUploadFile(next); setFile(snapshot); message.success("Excel 文件上传成功"); return false; }}
+         onRemove={() => { setFile(undefined); return true; }}
          maxCount={1}
          accept=".xlsx,.xls"
        >
@@ -1358,132 +940,6 @@ const ImportTemplateSettings = ({ config, reload }: any) => {
   </Card>;
 };
 
-const QuoteImportMappingSettings = ({ config, reload }: any) => {
-  const { message: appMessage } = App.useApp();
-  const [quoteId, setQuoteId] = useState<string>(); const [importId, setImportId] = useState<string>(); const [mappings, setMappings] = useState<any[]>([]); const [saving, setSaving] = useState(false);
-  const suggestionVersion = useRef(0);
-  const suggestionPrompted = useRef(new Set<string>());
-  const quote = (config.quoteTemplates || []).find((item: QuoteTemplate) => item.id === quoteId); const importTemplate = (config.importTemplates || []).find((item: ImportTemplate) => item.id === importId);
-  useEffect(() => {
-    if (!quoteId || !importId) { setMappings([]); return; }
-    const requestVersion = ++suggestionVersion.current;
-    const current = (config.quoteMappings || []).filter((item: any) => item.quote_template_id === quoteId && item.import_template_id === importId);
-    if (current.length) { setMappings(current); return; }
-    const promptKey = `${quoteId}:${importId}`;
-    if (suggestionPrompted.current.has(promptKey)) { setMappings([]); return; }
-    suggestionPrompted.current.add(promptKey);
-    let cancelled = false;
-    Modal.confirm({
-      title: "自动匹配映射",
-      content: "当前没有已保存的映射，是否根据字段名称自动匹配？",
-      okText: "自动匹配",
-      cancelText: "暂不匹配",
-      onOk: async () => {
-        try {
-          const response: any = await apiClient.get(`/one-click-transfer/quote-mappings/suggest?quoteTemplateId=${encodeURIComponent(quoteId)}&importTemplateId=${encodeURIComponent(importId)}`);
-          if (requestVersion === suggestionVersion.current && response.success) {
-            const next = response.data || [];
-            setMappings(next);
-            appMessage.success(`已自动匹配 ${next.filter((item: any) => item.targetColumn || item.targetCell).length} 条映射，请确认后保存`);
-          }
-        } catch (error: any) {
-          if (!cancelled) appMessage.error(error?.message || "自动匹配失败");
-        }
-      },
-    });
-    return () => { cancelled = true; };
-  }, [quoteId, importId]);
-  const markMappingsChanged = () => { suggestionVersion.current += 1; };
-  const update = (index: number, changes: any) => { markMappingsChanged(); setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item)); };
-  const appendMapping = (mapping: any) => { markMappingsChanged(); setMappings((current) => [...current, mapping]); };
-  const removeMapping = (index: number) => { markMappingsChanged(); setMappings((current) => current.filter((_, itemIndex) => itemIndex !== index)); };
-  const save = async () => { if (!quoteId || !importId || saving) return; setSaving(true); try { await apiClient.post(`/one-click-transfer/quote-templates/${quoteId}/mappings`, { importTemplateId: importId, mappings: mappings.map((item) => ({ sourceColumn: item.sourceColumn || null, targetColumn: item.targetColumn || null, forcedKey: item.forcedKey || null, targetCell: item.targetCell || null })) }); await reload(); appMessage.success("报价单映射保存成功"); } catch (error: any) { appMessage.error(error?.message || "报价单映射保存失败"); } finally { setSaving(false); } };
-  const sourceOptions = (quote?.headers || []).map((value: string) => ({ label: value, value })); const targetOptions = (importTemplate?.headers || []).map((value: string) => ({ label: value, value }));
-  return <div className="mapping-workbench"><div className="mapping-workbench-header"><div><h2>报价单 → 导入格式</h2><p>报价单是后续生成导入格式和收发委托单的基础</p></div><Space><Dropdown menu={{ items: ["证书单位", "证书地址", "校准日期"].map((key) => ({ key, label: key })), onClick: ({ key }) => appendMapping({ forcedKey: key, targetMode: key === "校准日期" ? "header" : "cell" }) }}><Button icon={<PlusOutlined />} disabled={!importTemplate}>新增特殊映射</Button></Dropdown><Button icon={<PlusOutlined />} disabled={!quote || !importTemplate} onClick={() => appendMapping({ sourceColumn: "", targetColumn: "" })}>新增映射</Button><Button type="primary" icon={<CheckCircleOutlined />} loading={saving} disabled={!quoteId || !importId} onClick={save}>保存映射</Button></Space></div><div className="mapping-template-bar"><div><label>报价单模板项</label><Select showSearch optionFilterProp="label" placeholder="选择报价单模板项" options={(config.quoteTemplates || []).map((item: QuoteTemplate) => ({ label: templateLabel(item, "报价单模板"), value: item.id }))} value={quoteId} onChange={setQuoteId} /></div><div><label>导入格式模板项</label><Select showSearch optionFilterProp="label" placeholder="选择导入格式模板项" options={(config.importTemplates || []).map((item: ImportTemplate) => ({ label: templateLabel(item, "导入格式模板"), value: item.id }))} value={importId} onChange={setImportId} /></div><div className="mapping-progress"><span>映射完成度 <b>{mappings.filter((item) => item.targetColumn || item.targetCell).length} / {mappings.length}</b></span><div><i style={{ width: mappings.length ? `${mappings.filter((item) => item.targetColumn || item.targetCell).length / mappings.length * 100}%` : "0%" }} /></div></div></div>{quote && importTemplate ? <div className="mapping-workspace"><section className="mapping-editor"><div className="mapping-editor-title"><strong>字段映射</strong><span>报价单字段 → 导入格式字段</span></div><div className="mapping-rows">{mappings.map((item, index) => { const special = Boolean(item.forcedKey); const isCell = item.targetMode === "cell" || (!item.targetMode && item.targetCell); const complete = Boolean(item.targetColumn || item.targetCell); return <div className={`mapping-item ${special ? "mapping-item-special" : ""}`} key={`${index}-${item.forcedKey || item.sourceColumn || "new"}`}><span className="mapping-item-index">{String(index + 1).padStart(2, "0")}</span><div className="mapping-field">{special ? <Input disabled value={item.forcedKey} /> : <Select showSearch optionFilterProp="label" placeholder="选择源字段" options={sourceOptions} value={item.sourceColumn || undefined} onChange={(value) => update(index, { sourceColumn: value })} />}</div><div className="mapping-line"><ArrowRightOutlined /></div><div className="mapping-field">{special ? <Space.Compact block><Select style={{ width: 112 }} value={isCell ? "cell" : "header"} options={[{ label: "目标列", value: "header" }, { label: "单元格", value: "cell" }]} disabled={!['校准日期', '检定日期'].includes(item.forcedKey)} onChange={(value) => update(index, value === "cell" ? { targetMode: value, targetColumn: "" } : { targetMode: value, targetCell: "" })} />{isCell ? <Input placeholder="例如 B2" value={item.targetCell} onChange={(event) => update(index, { targetCell: event.target.value })} /> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</Space.Compact> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</div><span className={`mapping-item-status ${complete ? "is-complete" : "is-pending"}`}>{complete ? <CheckCircleOutlined /> : "●"} {complete ? "已匹配" : "待配置"}</span><Button type="text" danger icon={<DeleteOutlined />} aria-label="删除映射" onClick={() => removeMapping(index)} /></div>; })}</div></section><aside className="mapping-preview"><h3>字段预览</h3><p className="mapping-preview-caption">A 列：报价单字段　B 列：导入格式字段</p><div className="mapping-preview-sheet"><div className="sheet-head"><span>#</span><span>A（源列）</span><span>B（目标列）</span></div><div className="mapping-preview-scroll">{Array.from({ length: Math.max(sourceOptions.length, targetOptions.length) }, (_, index) => <div key={index}><span>{index + 1}</span><span>{sourceOptions[index]?.value || ""}</span><span>{targetOptions[index]?.value || ""}</span></div>)}</div></div></aside></div> : <div className="mapping-guide">请先选择报价单和导入格式模板项</div>}</div>;
-};
-
-const QuoteOrderMappingSettings = ({ config, reload }: any) => {
-  const { message: appMessage } = App.useApp();
-  const [quoteId, setQuoteId] = useState<string>();
-  const [orderId, setOrderId] = useState<string>();
-  const [mappings, setMappings] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
-  const suggestionVersion = useRef(0);
-  const suggestionPrompted = useRef(new Set<string>());
-  const quote = (config.quoteTemplates || []).find((item: QuoteTemplate) => item.id === quoteId);
-  const orderTemplate = (config.orderTemplates || config.uploadTemplates || []).find((item: UploadTemplate) => item.id === orderId);
-  useEffect(() => {
-    if (!quoteId || !orderId) { setMappings([]); return; }
-    const requestVersion = ++suggestionVersion.current;
-    const current = (config.quoteOrderMappings || []).filter((item: any) => item.quote_template_id === quoteId && item.order_template_id === orderId);
-    if (current.length) { setMappings(current); return; }
-    const promptKey = `${quoteId}:${orderId}`;
-    if (suggestionPrompted.current.has(promptKey)) { setMappings([]); return; }
-    suggestionPrompted.current.add(promptKey);
-    let cancelled = false;
-    Modal.confirm({
-      title: "自动匹配映射",
-      content: "当前没有已保存的映射，是否根据字段名称自动匹配？",
-      okText: "自动匹配",
-      cancelText: "暂不匹配",
-      onOk: async () => {
-        try {
-          const response: any = await apiClient.get(`/one-click-transfer/quote-order-mappings/suggest?quoteTemplateId=${encodeURIComponent(quoteId)}&orderTemplateId=${encodeURIComponent(orderId)}`);
-          if (requestVersion === suggestionVersion.current && response.success) {
-            const next = response.data || [];
-            setMappings(next);
-            appMessage.success(`已自动匹配 ${next.filter((item: any) => item.targetColumn || item.targetCell).length} 条映射，请确认后保存`);
-          }
-        } catch (error: any) {
-          if (!cancelled) appMessage.error(error?.message || "自动匹配失败");
-        }
-      },
-    });
-    return () => { cancelled = true; };
-  }, [quoteId, orderId]);
-  const markMappingsChanged = () => { suggestionVersion.current += 1; };
-  const update = (index: number, changes: any) => { markMappingsChanged(); setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item)); };
-  const removeMapping = (index: number) => { markMappingsChanged(); setMappings((current) => current.filter((_, itemIndex) => itemIndex !== index)); };
-    const sourceOptions = (quote?.headers || []).map((value: string) => ({ label: value, value }));
-  const targetOptions = (orderTemplate?.headers || []).map((value: string) => ({ label: value, value }));
-  const save = async () => {
-    if (!quoteId || !orderId || saving) return;
-    setSaving(true);
-    try {
-      await apiClient.post(`/one-click-transfer/quote-templates/${quoteId}/order-mappings`, { orderTemplateId: orderId, mappings: mappings.map((item) => ({ sourceColumn: item.sourceColumn || null, targetColumn: item.targetColumn || null, forcedKey: item.forcedKey || null, targetCell: item.targetCell || null })) });
-      await reload(); appMessage.success("报价单到收发委托单映射保存成功");
-    } catch (error: any) { appMessage.error(error?.message || "报价单到收发委托单映射保存失败"); } finally { setSaving(false); }
-  };
-  return <div className="mapping-workbench">
-    <div className="mapping-workbench-header"><div><h2>报价单 → 收发委托单</h2><p>报价单直接转换成系统统一的收发委托单</p></div><Space><Dropdown menu={{ items: ["证书单位", "证书地址", "校准日期"].map((key) => ({ key, label: key })), onClick: ({ key }) => { markMappingsChanged(); setMappings((current) => [...current, { forcedKey: key, targetMode: key === "校准日期" ? "header" : "cell" }]); } }}><Button icon={<PlusOutlined />} disabled={!orderTemplate}>新增特殊映射</Button></Dropdown><Button icon={<PlusOutlined />} disabled={!quote || !orderTemplate} onClick={() => { markMappingsChanged(); setMappings((current) => [...current, { sourceColumn: "", targetColumn: "" }]); }}>新增映射</Button><Button type="primary" icon={<CheckCircleOutlined />} loading={saving} disabled={!quoteId || !orderId} onClick={save}>保存映射</Button></Space></div>
-    <div className="mapping-template-bar"><div><label>报价单模板项</label><Select showSearch optionFilterProp="label" placeholder="选择报价单模板项" options={(config.quoteTemplates || []).map((item: QuoteTemplate) => ({ label: templateLabel(item, "报价单模板"), value: item.id }))} value={quoteId} onChange={setQuoteId} /></div><div><label>收发委托单模板项</label><Select showSearch optionFilterProp="label" placeholder="选择收发委托单模板项" options={(config.orderTemplates || config.uploadTemplates || []).map((item: UploadTemplate) => ({ label: templateLabel(item, "收发委托模板"), value: item.id }))} value={orderId} onChange={setOrderId} /></div><div className="mapping-progress"><span>映射完成度 <b>{mappings.filter((item) => item.sourceColumn && item.targetColumn).length} / {mappings.length}</b></span><div><i style={{ width: mappings.length ? `${mappings.filter((item) => item.sourceColumn && item.targetColumn).length / mappings.length * 100}%` : "0%" }} /></div></div></div>
-    {quote && orderTemplate ? <div className="mapping-workspace"><section className="mapping-editor"><div className="mapping-editor-title"><strong>字段映射</strong><span>报价单字段只能映射到收发委托单字段</span></div><div className="mapping-rows">{mappings.map((item, index) => { const special = Boolean(item.forcedKey); const isCell = item.targetMode === "cell" || (!item.targetMode && item.targetCell); const complete = Boolean(item.targetColumn || item.targetCell); return <div className={`mapping-item ${special ? "mapping-item-special" : ""}`} key={`${index}-${item.forcedKey || item.sourceColumn || "new"}`}><span className="mapping-item-index">{String(index + 1).padStart(2, "0")}</span><div className="mapping-field">{special ? <Input disabled value={item.forcedKey} /> : <Select showSearch optionFilterProp="label" placeholder="选择源字段" options={sourceOptions} value={item.sourceColumn || undefined} onChange={(value) => update(index, { sourceColumn: value })} />}</div><div className="mapping-line"><ArrowRightOutlined /></div><div className="mapping-field">{special ? <Space.Compact block><Select style={{ width: 112 }} value={isCell ? "cell" : "header"} options={[{ label: "目标列", value: "header" }, { label: "单元格", value: "cell" }]} disabled={!['校准日期', '检定日期'].includes(item.forcedKey)} onChange={(value) => update(index, value === "cell" ? { targetMode: value, targetColumn: "" } : { targetMode: value, targetCell: "" })} />{isCell ? <Input placeholder="例如 B2" value={item.targetCell} onChange={(event) => update(index, { targetCell: event.target.value })} /> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</Space.Compact> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</div><span className={`mapping-item-status ${complete ? "is-complete" : "is-pending"}`}>{complete ? <CheckCircleOutlined /> : "●"} {complete ? "已匹配" : "待配置"}</span><Button type="text" danger icon={<DeleteOutlined />} aria-label="删除映射" onClick={() => removeMapping(index)} /></div>; })}</div></section><aside className="mapping-preview"><h3>字段预览</h3><p className="mapping-preview-caption">A 列：报价单字段　B 列：收发委托单字段</p><div className="mapping-preview-sheet"><div className="sheet-head"><span>#</span><span>A（源列）</span><span>B（目标列）</span></div><div className="mapping-preview-scroll">{Array.from({ length: Math.max(sourceOptions.length, targetOptions.length) }, (_, index) => <div key={index}><span>{index + 1}</span><span>{sourceOptions[index]?.value || ""}</span><span>{targetOptions[index]?.value || ""}</span></div>)}</div></div></aside></div> : <div className="mapping-guide">请先选择报价单和收发委托单模板</div>}
-  </div>;
-};
-
-const QuoteMappingSettings = ({ config, reload, targetType: controlledTargetType }: any) => {
-  const [localTargetType, setLocalTargetType] = useState<"import" | "order">("import");
-  const targetType = controlledTargetType || localTargetType;
-
-  return <div className="quote-mapping-page">
-    {!controlledTargetType && (<div className="mapping-template-bar quote-mapping-type-bar">
-      <div>
-        <label>目标类型</label>
-        <Radio.Group
-          value={targetType}
-          onChange={(event) => setLocalTargetType(event.target.value)}
-          options={[
-            { label: "报价单 → 导入格式", value: "import" },
-            { label: "报价单 → 收发委托单", value: "order" },
-          ]}
-        />
-      </div>
-    </div>)}
-    {targetType === "import"
-      ? <QuoteImportMappingSettings config={config} reload={reload} />
-      : <QuoteOrderMappingSettings config={config} reload={reload} />}
-  </div>;
-};
 const getSkipDetails = (task: any): { excluded: Array<{ keyword: string; count: number }>; unmatched: number } => {
   try {
     const parsed = JSON.parse(task?.skip_detail_json || task?.skipDetailJson || "{}");
@@ -1564,7 +1020,6 @@ const TransferMonitoringPanel = ({ monitoring, onRefresh, refreshing }: any) => 
   </div>;
 };
 
-/** Unified mapping entry point. The target type determines which mapping model is edited. */
 const UnifiedMappingSettings = ({ config, reload }: any) => {
   const mappingConfig = {
     ...config,
@@ -1581,7 +1036,7 @@ const UnifiedMappingSettings = ({ config, reload }: any) => {
   );
 };
 
-const TemplateAccordion = ({ title, count, defaultOpen = false, children, onSave, onEdit, onDelete, onToggle }: any) => {
+const TemplateAccordion = ({ title, count, defaultOpen = false, children, onEdit, onDelete, onToggle }: any) => {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLElement>(null);
   const handleEdit = () => {
@@ -1594,7 +1049,7 @@ const TemplateAccordion = ({ title, count, defaultOpen = false, children, onSave
   };
   return <section ref={rootRef} className={`template-accordion ${open ? "is-open" : "is-closed"}`}>
     <div className="template-accordion-header">
-      <button type="button" className="template-accordion-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+      <button type="button" className="template-accordion-trigger" onClick={() => setOpen((value: boolean) => !value)} aria-expanded={open}>
         <span className="template-accordion-chevron">{open ? "⌃" : "⌄"}</span><span className="template-accordion-title">{title}</span><span className="template-count">{count || 0} 个模板</span>
       </button>
       <div className="template-accordion-actions">
@@ -1727,7 +1182,7 @@ const TemplateSettingsManagerV2 = ({ config, reload }: any) => {
         </TemplateAccordion>
       </section>
       <section className="transfer-template-column transfer-template-column-order">
-        <TemplateAccordion title="收发委托模板" count={(config.uploadTemplates || []).length} onSave={() => void saveUpload().catch((error: any) => message.error(error?.message || "模板保存失败"))} onEdit={() => document.querySelector<HTMLElement>(".transfer-template-column-order .ant-table-tbody tr")?.focus()}>
+        <TemplateAccordion title="收发委托模板" count={(config.uploadTemplates || []).length} onEdit={() => document.querySelector<HTMLElement>(".transfer-template-column-order .ant-table-tbody tr")?.focus()}>
         <Card title="收发委托单模板">
           <Form
             form={uploadForm}
@@ -1823,7 +1278,7 @@ const TemplateSettingsManagerV2 = ({ config, reload }: any) => {
         </TemplateAccordion>
       </section>
       <section className="transfer-template-column transfer-template-column-target">
-        <TemplateAccordion title="转送对象模板" count={(config.targetTemplates || []).length} onSave={() => void saveTarget().catch((error: any) => message.error(error?.message || "模板保存失败"))} onEdit={() => document.querySelector<HTMLElement>(".transfer-template-column-target .ant-table-tbody tr")?.focus()}>
+        <TemplateAccordion title="转送对象模板" count={(config.targetTemplates || []).length} onEdit={() => document.querySelector<HTMLElement>(".transfer-template-column-target .ant-table-tbody tr")?.focus()}>
         <Card title="转送对象模板">
           <Form form={targetForm} layout="vertical" className="transfer-template-form">
             <Form.Item
@@ -1836,6 +1291,7 @@ const TemplateSettingsManagerV2 = ({ config, reload }: any) => {
             <Form.Item
               name="matchKeyword"
               label="匹配关键字"
+              extra="支持说明型内容：B，校准点100，A，测100 会命中 B 或 A；仅按分隔片段完整匹配，不会把 AB 误判为 B"
               rules={[{ required: true }]}
             >
               <Input placeholder="多个关键字用中文或英文逗号分隔，例如：中溯，中溯检测" />
@@ -1915,222 +1371,6 @@ const TemplateSettingsManagerV2 = ({ config, reload }: any) => {
   );
 };
 
-const MappingSettings = ({ config, reload }: any) => {
-  const [targetId, setTargetId] = useState<string>();
-  const [uploadTemplateId, setUploadTemplateId] = useState<string>();
-  const [mappings, setMappings] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
-  const { message: appMessage } = App.useApp();
-  const target: Target | undefined = config.targetTemplates.find(
-    (item: Target) => item.id === targetId,
-  );
-  const uploadTemplate: UploadTemplate | undefined =
-    config.uploadTemplates.find(
-      (item: UploadTemplate) => item.id === uploadTemplateId,
-    );
-  const sourceOptions = (uploadTemplate?.headers || []).map((header) => ({
-    label: header,
-    value: header,
-  }));
-  const targetOptions = (target?.headers || []).map((header) => ({
-    label: header,
-    value: header,
-  }));
-  useEffect(() => {
-    setMappings(target?.mappings || []);
-  }, [target]);
-  const updateMapping = (index: number, changes: any) =>
-    setMappings((current) =>
-      current.map((mapping, rowIndex) =>
-        rowIndex === index ? { ...mapping, ...changes } : mapping,
-      ),
-    );
-  return (
-    <Card title="映射关系">
-      <Space wrap style={{ marginBottom: 16 }}>
-        <Select
-          style={{ width: 240 }}
-          placeholder="选择待上传模板"
-          options={config.uploadTemplates.map((item: UploadTemplate) => ({
-            label: templateLabel(item, "收发委托模板"),
-            value: item.id,
-          }))}
-          value={uploadTemplateId}
-          onChange={setUploadTemplateId}
-        />
-        <Select
-          style={{ width: 240 }}
-          placeholder="选择转送对象模板"
-          options={config.targetTemplates.map((item: Target) => ({
-            label: templateLabel(item, "转送对象模板"),
-            value: item.id,
-          }))}
-          value={targetId}
-          onChange={setTargetId}
-        />
-        <Button
-          disabled={!target || !uploadTemplate}
-          onClick={() =>
-            setMappings([...mappings, { sourceColumn: "", targetColumn: "" }])
-          }
-          icon={<PlusOutlined />}
-        >
-          新增映射
-        </Button>
-      </Space>
-      {target && (
-        <>
-          <Table
-            pagination={false}
-            dataSource={mappings}
-            rowKey={(_, index) => String(index)}
-            columns={[
-              {
-                title: "源列名",
-                width: "34%",
-                render: (_: unknown, row: any, index: number) =>
-                  row.forcedKey ? (
-                    <Input
-                      disabled
-                      value={row.forcedKey}
-                      style={{ width: "100%" }}
-                    />
-                  ) : (
-                    <Select
-                      style={{ width: "100%" }}
-                      showSearch
-                      placeholder="选择待上传模板列名"
-                      options={sourceOptions}
-                      value={row.sourceColumn || undefined}
-                      onChange={(value) =>
-                        updateMapping(index, { sourceColumn: value })
-                      }
-                    />
-                  ),
-              },
-              {
-                title: "目标列名/单元格",
-                width: "38%",
-                render: (_: unknown, row: any, index: number) =>
-                  row.forcedKey ? (
-                    <Space.Compact style={{ width: "100%" }}>
-                      <Select
-                        style={{ width: 112 }}
-                        value={row.targetMode || (row.targetCell ? "cell" : "header")}
-                        options={[
-                          { label: "固定单元格", value: "cell" },
-                          { label: "表头列", value: "header" },
-                        ]}
-                        disabled={row.forcedKey !== "校准日期"}
-                        onChange={(value) =>
-                          updateMapping(
-                            index,
-                            value === "cell"
-                              ? { targetMode: value, targetColumn: "" }
-                              : { targetMode: value, targetCell: "" },
-                          )
-                        }
-                      />
-                      {(row.targetMode || (row.targetCell ? "cell" : "header")) === "cell" ? (
-                        <Input
-                          placeholder="例如 B2"
-                          value={row.targetCell}
-                          onChange={(event) =>
-                            updateMapping(index, { targetCell: event.target.value })
-                          }
-                        />
-                      ) : (
-                        <Select
-                          style={{ flex: 1 }}
-                          showSearch
-                          placeholder="选择目标表头列"
-                          options={targetOptions}
-                          value={row.targetColumn || row.forcedKey || undefined}
-                          onChange={(value) =>
-                            updateMapping(index, { targetColumn: value })
-                          }
-                        />
-                      )}
-                    </Space.Compact>
-                  ) : (
-                    <Select
-                      style={{ width: "100%" }}
-                      showSearch
-                      placeholder="选择转送对象模板列名"
-                      options={targetOptions}
-                      value={row.targetColumn || undefined}
-                      onChange={(value) =>
-                        updateMapping(index, { targetColumn: value })
-                      }
-                    />
-                  ),
-              },
-              {
-                title: "强制项",
-                width: "28%",
-                render: (_: unknown, row: any, index: number) => (
-                  <Select
-                    style={{ width: "100%" }}
-                    allowClear
-                    placeholder="非必选"
-                    options={["证书单位", "证书地址", "校准日期"].map(
-                      (item) => ({ label: item, value: item }),
-                    )}
-                    value={row.forcedKey || undefined}
-                    onChange={(value) =>
-                      updateMapping(
-                        index,
-                        value
-                          ? {
-                              forcedKey: value,
-                              sourceColumn: "",
-                              targetColumn: "",
-                              targetMode: value === "校准日期" ? "header" : "cell",
-                            }
-                          : { forcedKey: null, targetCell: "" },
-                      )
-                    }
-                  />
-                ),
-              },
-            ]}
-          />
-          <Button
-            type="primary"
-            style={{ marginTop: 16 }}
-            loading={saving}
-            disabled={!targetId}
-            onClick={async () => {
-              if (!targetId || saving) return;
-              setSaving(true);
-              try {
-                await apiClient.post(
-                  `/one-click-transfer/target-templates/${targetId}/mappings`,
-                  {
-                    mappings: mappings.map((mapping) => ({
-                      sourceColumn: mapping.sourceColumn || null,
-                      targetColumn: mapping.targetColumn || null,
-                      forcedKey: mapping.forcedKey || null,
-                      targetCell: mapping.targetCell || null,
-                    })),
-                  },
-                );
-                await reload();
-                appMessage.success("映射保存成功");
-              } catch (error: any) {
-                appMessage.error(error?.message || "映射保存失败");
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            保存映射
-          </Button>
-        </>
-      )}
-    </Card>
-  );
-};
 const ModernMappingSettings = ({ config, reload }: any) => {
   const { message: appMessage } = App.useApp();
   const [targetGroup, setTargetGroup] = useState<string>();
@@ -2227,7 +1467,9 @@ const ModernMappingSettings = ({ config, reload }: any) => {
     else if (targetType === "target") {
       const allMappings = targetTemplate?.mappings || [];
       const specific = allMappings.filter((item: any) => item.upload_template_id === sourceItemId);
-      current = specific.length ? specific : allMappings.filter((item: any) => !item.upload_template_id);
+      const shared = allMappings.filter((item: any) => !item.upload_template_id && ["证书单位", "证书名称", "证书地址", "校准日期", "校准时间", "特殊要求"].includes(String(item.forcedKey || item.forced_key || "").trim()));
+      const specificKeys = new Set(specific.map((item: any) => String(item.forcedKey || item.forced_key || "").trim()));
+      current = specific.length ? [...specific, ...shared.filter((item: any) => !specificKeys.has(String(item.forcedKey || item.forced_key || "").trim()))] : allMappings.filter((item: any) => !item.upload_template_id);
     }
     if (current.length) { setMappings(current); return; }
     const promptKey = `${relation}:${sourceItemId}:${targetItemId}`;
@@ -2301,8 +1543,8 @@ const ModernMappingSettings = ({ config, reload }: any) => {
           <Space>
           <Dropdown
             menu={{
-              items: ["证书单位", "证书地址", "校准日期"].map((key) => ({ key, label: key })),
-              onClick: ({ key }) => appendMapping({ forcedKey: key, targetMode: key === "校准日期" ? "header" : "cell" }),
+              items: ["证书单位", "证书地址", "校准日期", "特殊要求"].map((key) => ({ key, label: key })),
+              onClick: ({ key }) => appendMapping({ forcedKey: key, targetMode: key === "校准日期" || key === "特殊要求" ? "header" : "cell" }),
             }}
           >
             <Button disabled={!targetTemplate}>＋ 特殊映射</Button>
@@ -2331,7 +1573,7 @@ const ModernMappingSettings = ({ config, reload }: any) => {
                 <span className="mapping-item-index">{String(index + 1).padStart(2, "0")}</span>
                 <div className="mapping-field">{special ? <Input disabled value={item.forcedKey} /> : <Select showSearch optionFilterProp="label" placeholder="选择源字段" options={sourceOptions} value={item.sourceColumn || undefined} onChange={(value) => update(index, { sourceColumn: value })} />}</div>
                 <div className="mapping-line"><ArrowRightOutlined /></div>
-                <div className="mapping-field">{special ? <Space.Compact block><Select style={{ width: 112 }} value={isCell ? "cell" : "header"} options={[{ label: "目标列", value: "header" }, { label: "单元格", value: "cell" }]} disabled={!['校准日期', '检定日期'].includes(item.forcedKey)} onChange={(value) => update(index, value === "cell" ? { targetMode: value, targetColumn: "" } : { targetMode: value, targetCell: "" })} />{isCell ? <Input placeholder="例如 B2" value={item.targetCell} onChange={(event) => update(index, { targetCell: event.target.value })} /> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</Space.Compact> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</div>
+                <div className="mapping-field">{special ? <Space.Compact block><Select style={{ width: 112 }} value={isCell ? "cell" : "header"} options={[{ label: "目标列", value: "header" }, { label: "单元格", value: "cell" }]} disabled={!['校准日期', '检定日期', '特殊要求', '证书单位', '证书地址'].includes(item.forcedKey)} onChange={(value) => update(index, value === "cell" ? { targetMode: value, targetColumn: "" } : { targetMode: value, targetCell: "" })} />{isCell ? <Input placeholder="例如 B2" value={item.targetCell} onChange={(event) => update(index, { targetCell: event.target.value })} /> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</Space.Compact> : <Select showSearch optionFilterProp="label" placeholder="选择目标字段" options={targetOptions} value={item.targetColumn || undefined} onChange={(value) => update(index, { targetColumn: value })} />}</div>
                 <span className={`mapping-item-status ${complete ? "is-complete" : "is-pending"}`}>{complete ? <CheckCircleOutlined /> : "●"} {complete ? "已匹配" : "待配置"}</span>
                 <Button type="text" danger aria-label="删除映射" onClick={() => removeMapping(index)}>删除</Button>
               </div>;

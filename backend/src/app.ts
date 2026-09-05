@@ -64,13 +64,6 @@ function registerHealthRoutes(application: express.Express) {
       status: 'ok',
       message: 'Server is running',
       dbStatus,
-      dbPath: (() => {
-        try {
-          return dbConfig.getDbPath();
-        } catch {
-          return '';
-        }
-      })(),
       timestamp: new Date().toISOString(),
     });
   };
